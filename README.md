@@ -12,7 +12,7 @@ See [`PLAN.md`](./PLAN.md) for the full design and rationale.
 
 - Canonical graph model + deterministic, pure **emitter** (model → Mermaid text).
 - **Parser** (text → model) via Mermaid's internal flowchart db, isolated behind a
-  single module and pinned to `mermaid@11.6.0` (see the version canary test).
+  single module and pinned to `mermaid@11.15.0` (see the version canary test).
 - **Trivia** pre-pass that preserves comments, frontmatter/`%%{init}%%` directives,
   and per-node positions (`%% @pos`) across a round-trip.
 - **Dual-master sync store** (Zustand) with loop guards: code edits parse into the
