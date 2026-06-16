@@ -31,34 +31,74 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  background: var(--panel);
+  height: 44px;
+  /* Left pad clears the macOS traffic lights (overlay title bar). */
+  padding: 0 12px 0 84px;
+  background: rgba(42, 42, 45, 0.96);
   border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toolbar .brand {
-  margin-right: 8px;
-}
-
-.toolbar button,
-.toolbar .toggle {
-  background: #333;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 10px;
   font-size: 13px;
-  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  opacity: 0.92;
+  margin-right: 6px;
 }
 
-.toolbar button:hover {
-  border-color: var(--accent);
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: default;
+  transition: background 0.12s ease;
+}
+
+.tbtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tbtn:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tbtn.active {
+  background: rgba(68, 147, 248, 0.22);
+  color: #cfe2ff;
+}
+
+.tbtn svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
+
+.tsep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 5px;
 }
 
 .toolbar .status {
   margin-left: auto;
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .panes {
