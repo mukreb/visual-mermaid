@@ -23,21 +23,37 @@ export async function openMermaidFile(): Promise<OpenedFile | null> {
   return { path: selected, text: await readTextFile(selected) };
 }
 
+export interface SaveResult {
+  saved: boolean;
+  path: string | null;
+}
+
 export async function saveMermaidFile(
   text: string,
   path?: string | null,
-): Promise<string | null> {
+): Promise<SaveResult> {
   if (!isTauri()) {
     browserSave(text);
-    return null;
+    return { saved: true, path: null };
   }
   const { save } = await import("@tauri-apps/plugin-dialog");
   const { writeTextFile } = await import("@tauri-apps/plugin-fs");
   const target =
     path ?? (await save({ filters: [{ name: "Mermaid", extensions: ["mmd"] }] }));
-  if (!target) return null;
+  if (!target) return { saved: false, path: null };
   await writeTextFile(target, text);
-  return target;
+  return { saved: true, path: target };
+}
+
+/** Confirm a destructive action (uses the native dialog under Tauri). */
+export async function confirmDiscard(message: string): Promise<boolean> {
+  if (!isTauri()) return window.confirm(message);
+  try {
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    return await confirm(message, { title: "Unsaved changes", kind: "warning" });
+  } catch {
+    return window.confirm(message);
+  }
 }
 
 function browserOpen(): Promise<OpenedFile | null> {
