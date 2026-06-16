@@ -45,11 +45,11 @@ Tauri builds a native app against macOS's WKWebView, so this step needs a Mac
 (it cannot be cross-compiled from Linux):
 
 ```bash
-# one-time: generate app icons from any square PNG
-npm run tauri icon path/to/logo.png
-
 npm run tauri dev     # live-reload desktop window
 npm run tauri build   # local .app / .dmg (unsigned — personal use)
+
+# the repo ships a placeholder icon; to use your own, drop in a square PNG:
+npm run tauri icon path/to/logo.png
 ```
 
 ## Layout
