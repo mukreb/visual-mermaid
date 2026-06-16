@@ -1,0 +1,135 @@
+:root {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --border: #3c3c3c;
+  --fg: #d4d4d4;
+  --accent: #4493f8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar .brand {
+  margin-right: 8px;
+}
+
+.toolbar button,
+.toolbar .toggle {
+  background: #333;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  border-color: var(--accent);
+}
+
+.toolbar .status {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.panes {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  min-height: 0;
+}
+
+.panes.no-preview {
+  grid-template-columns: 1fr 1fr;
+}
+
+.pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.pane:last-child {
+  border-right: none;
+}
+
+.visual-pane,
+.preview-pane {
+  background: var(--bg);
+}
+
+.preview-svg {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 12px;
+}
+
+.preview-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.diagnostic {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  background: #5a1d1d;
+  color: #ffd7d7;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-top: 1px solid #7a2a2a;
+}
+
+.shape-node {
+  min-width: 90px;
+  min-height: 40px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: #2d2d30;
+  border: 1.5px solid var(--accent);
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.shape-node-label {
+  pointer-events: none;
+}
