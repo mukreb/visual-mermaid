@@ -2,7 +2,7 @@
 // Pure functions returning a new GraphModel; the store calls these and then
 // re-emits text. Keeping them pure makes the visual→text path unit-testable.
 
-import type { GEdge, GNode, GraphModel, NodeShape } from "../model/types";
+import type { EdgeKind, GEdge, GNode, GraphModel, NodeShape } from "../model/types";
 
 /** A fresh node id that doesn't collide with existing ones (n1, n2, ...). */
 export function nextNodeId(model: GraphModel): string {
@@ -84,4 +84,27 @@ export function connect(model: GraphModel, source: string, target: string): Grap
 
 export function removeEdge(model: GraphModel, id: string): GraphModel {
   return { ...model, edges: model.edges.filter((e) => e.id !== id) };
+}
+
+export function setNodeShape(model: GraphModel, id: string, shape: NodeShape): GraphModel {
+  return {
+    ...model,
+    nodes: model.nodes.map((n) => (n.id === id ? { ...n, shape } : n)),
+  };
+}
+
+export function setEdgeKind(model: GraphModel, id: string, kind: EdgeKind): GraphModel {
+  return {
+    ...model,
+    edges: model.edges.map((e) => (e.id === id ? { ...e, kind } : e)),
+  };
+}
+
+export function setEdgeLabel(model: GraphModel, id: string, label: string): GraphModel {
+  return {
+    ...model,
+    edges: model.edges.map((e) =>
+      e.id === id ? { ...e, label: label.length > 0 ? label : undefined } : e,
+    ),
+  };
 }

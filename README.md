@@ -12,18 +12,25 @@ See [`PLAN.md`](./PLAN.md) for the full design and rationale.
 
 - Canonical graph model + deterministic, pure **emitter** (model → Mermaid text).
 - **Parser** (text → model) via Mermaid's internal flowchart db, isolated behind a
-  single module and pinned to `mermaid@11.6.0` (see the version canary test).
+  single module and pinned to `mermaid@11.15.0` (see the version canary test).
 - **Trivia** pre-pass that preserves comments, frontmatter/`%%{init}%%` directives,
   and per-node positions (`%% @pos`) across a round-trip.
 - **Dual-master sync store** (Zustand) with loop guards: code edits parse into the
   model (debounced); visual edits re-emit the text — neither feeds back on itself.
-- React UI: Monaco code view, React Flow canvas, live `mermaid.render()` preview.
+- React UI: Monaco code view (with inline error markers), React Flow canvas, live
+  `mermaid.render()` preview, and a selection **inspector** to edit a node's
+  shape/label or an edge's style/label.
+- **Undo/redo** (model history), **dirty tracking** with an unsaved indicator, and
+  subgraphs drawn as containers on the canvas.
+- Native macOS feel: unified title bar, icon toolbar, live light/dark theming, a
+  **menu bar** + keyboard shortcuts (⌘N/⌘O/⌘S/⇧⌘S, ⌘Z/⇧⌘Z, ⌥⌘P), and an
+  unsaved-changes prompt on close.
 - Tauri v2 shell with open/save `.mmd` (dialog + fs plugins).
 
-29 tests pass (pure emitter, trivia, round-trip over fixtures, store loop-guard,
-and the mermaid db canary). The round-trip property tests assert that
-`parse(serialize(parse(text)))` is **semantically equal** — formatting is
-intentionally normalized.
+39 tests pass (pure emitter, trivia, round-trip over fixtures, store loop-guard,
+undo/redo + dirty tracking, the editing helpers, and the mermaid db canary). The
+round-trip property tests assert that `parse(serialize(parse(text)))` is
+**semantically equal** — formatting is intentionally normalized.
 
 > Note: `mermaid.render()` needs a real browser (`getBBox`), so the live-render
 > equivalence check belongs in browser mode / Playwright, not the jsdom unit run.

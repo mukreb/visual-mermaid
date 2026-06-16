@@ -112,6 +112,25 @@ body,
   color: var(--accent-soft-fg);
 }
 
+.tbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tbtn:disabled:hover {
+  background: transparent;
+}
+
+.dirty-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
 .tbtn svg {
   width: 16px;
   height: 16px;
@@ -202,4 +221,81 @@ body,
 
 .shape-node-label {
   pointer-events: none;
+}
+
+/* Decorative subgraph container, drawn behind member nodes. */
+.group-node {
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  background: var(--hover);
+}
+
+.group-node-title {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Floating editor for the selected node / edge. */
+.inspector {
+  width: 210px;
+  padding: 10px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+}
+
+.inspector-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.inspector-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.inspector-row span {
+  opacity: 0.65;
+}
+
+.inspector-row input,
+.inspector-row select {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+.inspector-delete {
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px;
+  background: transparent;
+  color: #e0524a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: default;
+}
+
+.inspector-delete:hover {
+  background: rgba(224, 82, 74, 0.12);
 }
