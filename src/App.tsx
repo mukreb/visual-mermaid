@@ -6,6 +6,7 @@ import { openMermaidFile, saveMermaidFile } from "./lib/tauriFiles";
 import { useEditorStore } from "./model/store";
 import type { Direction } from "./model/types";
 import { CodeView } from "./views/CodeView";
+import { DirectionIcon, EyeIcon, FolderOpenIcon, PlusIcon, SaveIcon } from "./views/icons";
 import { Preview } from "./views/Preview";
 import { VisualView } from "./views/VisualView";
 
@@ -54,21 +55,43 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="toolbar">
-        <strong className="brand">Visual Mermaid</strong>
-        <button onClick={onOpen}>Open</button>
-        <button onClick={onSave}>Save</button>
-        <button onClick={() => mutate((m) => addNode(m, { label: "New" }))}>+ Node</button>
-        <button onClick={cycleDirection}>Direction: {direction}</button>
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={showPreview}
-            onChange={(e) => setShowPreview(e.target.checked)}
-          />
-          Preview
-        </label>
-        <span className="status">
+      <header className="toolbar" data-tauri-drag-region>
+        <span className="brand" data-tauri-drag-region>
+          Visual Mermaid
+        </span>
+        <div className="toolbar-group">
+          <button className="tbtn" onClick={onOpen} title="Open .mmd">
+            <FolderOpenIcon />
+            <span>Open</span>
+          </button>
+          <button className="tbtn" onClick={onSave} title="Save .mmd">
+            <SaveIcon />
+            <span>Save</span>
+          </button>
+          <span className="tsep" />
+          <button
+            className="tbtn"
+            onClick={() => mutate((m) => addNode(m, { label: "New" }))}
+            title="Add node"
+          >
+            <PlusIcon />
+            <span>Node</span>
+          </button>
+          <button className="tbtn" onClick={cycleDirection} title="Cycle layout direction">
+            <DirectionIcon />
+            <span>{direction}</span>
+          </button>
+          <button
+            className={`tbtn${showPreview ? " active" : ""}`}
+            onClick={() => setShowPreview((v) => !v)}
+            aria-pressed={showPreview}
+            title="Toggle preview"
+          >
+            <EyeIcon />
+            <span>Preview</span>
+          </button>
+        </div>
+        <span className="status" data-tauri-drag-region>
           {path ?? "untitled.mmd"}
           {error ? " — parse error" : ""}
         </span>

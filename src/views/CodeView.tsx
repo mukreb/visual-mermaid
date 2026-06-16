@@ -5,6 +5,7 @@
 import Editor, { type Monaco } from "@monaco-editor/react";
 import { useMemo } from "react";
 import { debounce } from "../lib/debounce";
+import { useColorScheme } from "../lib/useColorScheme";
 import { useEditorStore } from "../model/store";
 import { MERMAID_LANG_ID, registerMermaid } from "../mermaid/mermaidLanguage";
 
@@ -12,6 +13,7 @@ export function CodeView() {
   const text = useEditorStore((s) => s.text);
   const error = useEditorStore((s) => s.error);
   const setText = useEditorStore((s) => s.setText);
+  const scheme = useColorScheme();
 
   const debouncedParse = useMemo(
     () => debounce(() => void useEditorStore.getState().parseNow(), 300),
@@ -29,7 +31,7 @@ export function CodeView() {
     <div className="pane code-pane">
       <Editor
         language={MERMAID_LANG_ID}
-        theme="vs-dark"
+        theme={scheme === "dark" ? "vs-dark" : "vs"}
         value={text}
         onChange={handleChange}
         beforeMount={(monaco: Monaco) => registerMermaid(monaco)}

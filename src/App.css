@@ -1,10 +1,40 @@
+/* Light is the default; dark overrides via prefers-color-scheme so the app
+   follows the macOS system appearance and switches live when it changes. */
 :root {
-  color-scheme: dark;
-  --bg: #1e1e1e;
-  --panel: #252526;
-  --border: #3c3c3c;
-  --fg: #d4d4d4;
-  --accent: #4493f8;
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --panel: #f6f6f7;
+  --border: #e3e3e6;
+  --fg: #1d1d1f;
+  --accent: #007aff;
+  --toolbar-bg: rgba(246, 246, 247, 0.94);
+  --node-bg: #ffffff;
+  --hover: rgba(0, 0, 0, 0.06);
+  --active: rgba(0, 0, 0, 0.11);
+  --accent-soft: rgba(0, 122, 255, 0.16);
+  --accent-soft-fg: #0a4ea8;
+  --diag-bg: #fbe6e6;
+  --diag-fg: #8a1f1f;
+  --diag-border: #f0caca;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1e;
+    --panel: #252526;
+    --border: #3c3c3c;
+    --fg: #d4d4d4;
+    --accent: #4493f8;
+    --toolbar-bg: rgba(42, 42, 45, 0.96);
+    --node-bg: #2d2d30;
+    --hover: rgba(255, 255, 255, 0.08);
+    --active: rgba(255, 255, 255, 0.14);
+    --accent-soft: rgba(68, 147, 248, 0.22);
+    --accent-soft-fg: #cfe2ff;
+    --diag-bg: #5a1d1d;
+    --diag-fg: #ffd7d7;
+    --diag-border: #7a2a2a;
+  }
 }
 
 * {
@@ -31,34 +61,74 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  background: var(--panel);
+  height: 44px;
+  /* Left pad clears the macOS traffic lights (overlay title bar). */
+  padding: 0 12px 0 84px;
+  background: var(--toolbar-bg);
   border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toolbar .brand {
-  margin-right: 8px;
-}
-
-.toolbar button,
-.toolbar .toggle {
-  background: #333;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px 10px;
   font-size: 13px;
-  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  opacity: 0.92;
+  margin-right: 6px;
 }
 
-.toolbar button:hover {
-  border-color: var(--accent);
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: default;
+  transition: background 0.12s ease;
+}
+
+.tbtn:hover {
+  background: var(--hover);
+}
+
+.tbtn:active {
+  background: var(--active);
+}
+
+.tbtn.active {
+  background: var(--accent-soft);
+  color: var(--accent-soft-fg);
+}
+
+.tbtn svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
+}
+
+.tsep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 5px;
 }
 
 .toolbar .status {
   margin-left: auto;
   font-size: 12px;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .panes {
@@ -109,11 +179,11 @@ body,
   right: 0;
   bottom: 0;
   z-index: 5;
-  background: #5a1d1d;
-  color: #ffd7d7;
+  background: var(--diag-bg);
+  color: var(--diag-fg);
   font-size: 12px;
   padding: 4px 8px;
-  border-top: 1px solid #7a2a2a;
+  border-top: 1px solid var(--diag-border);
 }
 
 .shape-node {
@@ -124,7 +194,7 @@ body,
   align-items: center;
   justify-content: center;
   text-align: center;
-  background: #2d2d30;
+  background: var(--node-bg);
   border: 1.5px solid var(--accent);
   color: var(--fg);
   font-size: 13px;

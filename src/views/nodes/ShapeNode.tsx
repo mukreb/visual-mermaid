@@ -28,7 +28,7 @@ export function ShapeNode({ data, selected }: NodeProps<ShapeNodeType>) {
   return (
     <div
       className="shape-node"
-      style={{ ...SHAPE_STYLE[shape], outline: selected ? "2px solid #4493f8" : undefined }}
+      style={{ ...SHAPE_STYLE[shape], outline: selected ? "2px solid var(--accent)" : undefined }}
       title={`shape: ${shape}`}
     >
       <Handle type="target" position={Position.Top} />
