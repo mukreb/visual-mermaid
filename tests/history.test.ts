@@ -50,6 +50,14 @@ describe("undo/redo + dirty tracking", () => {
     expect(store.getState().future).toHaveLength(0);
   });
 
+  it("marking a stale snapshot as saved keeps newer edits dirty", async () => {
+    await store.getState().loadText(SAMPLE);
+    const snapshot = store.getState().text; // what a save would have written
+    store.getState().mutate((m) => addNode(m, { label: "X" })); // edit mid-save
+    store.getState().markSaved(snapshot); // baseline = the OLD written snapshot
+    expect(store.getState().text !== store.getState().savedText).toBe(true);
+  });
+
   it("tracks dirty against the saved baseline", async () => {
     await store.getState().loadText(SAMPLE);
     const dirty = () => store.getState().text !== store.getState().savedText;

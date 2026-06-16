@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { addNode } from "./flow/flowToModel";
 import { setupAppMenu } from "./lib/appMenu";
 import { setupCloseGuard } from "./lib/appWindow";
+import { flushFocusedInput } from "./lib/flushInput";
 import { confirmDiscard, isTauri, openMermaidFile, saveMermaidFile } from "./lib/tauriFiles";
 import { useEditorStore } from "./model/store";
 import type { Direction } from "./model/types";
@@ -51,8 +52,15 @@ export default function App() {
     void loadText(SAMPLE);
   }, [loadText]);
 
+  // Read dirty from the store *after* flushing, so a focused inspector edit counts.
+  const isDirtyNow = () => {
+    const s = useEditorStore.getState();
+    return s.text !== s.savedText;
+  };
+
   const onOpen = async () => {
-    if (dirty && !(await confirmDiscard("Discard unsaved changes?"))) return;
+    flushFocusedInput();
+    if (isDirtyNow() && !(await confirmDiscard("Discard unsaved changes?"))) return;
     const file = await openMermaidFile();
     if (file) {
       setPath(file.path);
@@ -61,23 +69,28 @@ export default function App() {
   };
 
   const onSave = async () => {
-    const res = await saveMermaidFile(text, path);
+    flushFocusedInput();
+    const snapshot = useEditorStore.getState().text;
+    const res = await saveMermaidFile(snapshot, path);
     if (res.saved) {
       if (res.path) setPath(res.path);
-      markSaved();
+      markSaved(snapshot); // baseline = exactly what was written, not later edits
     }
   };
 
   const onSaveAs = async () => {
-    const res = await saveMermaidFile(text, null);
+    flushFocusedInput();
+    const snapshot = useEditorStore.getState().text;
+    const res = await saveMermaidFile(snapshot, null);
     if (res.saved) {
       if (res.path) setPath(res.path);
-      markSaved();
+      markSaved(snapshot);
     }
   };
 
   const onNew = async () => {
-    if (dirty && !(await confirmDiscard("Discard unsaved changes?"))) return;
+    flushFocusedInput();
+    if (isDirtyNow() && !(await confirmDiscard("Discard unsaved changes?"))) return;
     setPath(null);
     await loadText(BLANK);
   };

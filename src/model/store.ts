@@ -56,8 +56,12 @@ export interface EditorState {
   undo: () => void;
   redo: () => void;
 
-  /** Mark the current text as saved (clears dirty). */
-  markSaved: () => void;
+  /**
+   * Set the dirty baseline to the snapshot that was actually written. Pass the
+   * exact saved text — defaulting to the current text would wrongly clear dirty
+   * for edits made while a save was still pending.
+   */
+  markSaved: (savedText?: string) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -165,5 +169,5 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  markSaved: () => set({ savedText: get().text }),
+  markSaved: (savedText) => set({ savedText: savedText ?? get().text }),
 }));
