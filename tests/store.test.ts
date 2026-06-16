@@ -65,6 +65,27 @@ describe("editor store", () => {
     expect(store.getState().text).toContain("%% @pos");
   });
 
+  it("bumps docVersion only after the parsed model is installed", async () => {
+    // Guards the canvas-refit race: if docVersion advances before parseNow
+    // commits the new model, VisualView remounts and fits the *previous* graph.
+    await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
+    const startVersion = store.getState().docVersion;
+    const startModel = store.getState().model;
+
+    const violations: string[] = [];
+    const unsub = store.subscribe((s) => {
+      if (s.docVersion > startVersion && s.model === startModel) {
+        violations.push("docVersion bumped while model was still the previous document");
+      }
+    });
+    await store.getState().loadText("flowchart TD\n  X[New] --> Y[New]\n");
+    unsub();
+
+    expect(violations).toEqual([]);
+    expect(store.getState().docVersion).toBe(startVersion + 1);
+    expect(store.getState().model.nodes.map((n) => n.id).sort()).toEqual(["X", "Y"]);
+  });
+
   it("keeps the last good model on a parse error", async () => {
     await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
     const good = store.getState().model;

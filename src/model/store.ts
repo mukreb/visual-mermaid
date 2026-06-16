@@ -139,14 +139,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       savedText: text,
       lastEditedBy: "code",
       error: null,
-      docVersion: get().docVersion + 1,
       past: [],
       future: [],
     });
     await get().parseNow();
     // parseNow records history for the parse; reset it — a fresh document
-    // starts with a clean undo stack.
-    set({ past: [], future: [] });
+    // starts with a clean undo stack. Bump docVersion only *after* the parsed
+    // model is installed: bumping it before the await would let the canvas
+    // remount and fit the previous (still-current) model mid-parse, leaving the
+    // newly opened graph unframed.
+    set({ past: [], future: [], docVersion: get().docVersion + 1 });
   },
 
   undo: () => {
