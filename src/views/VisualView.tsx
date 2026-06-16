@@ -86,6 +86,7 @@ export function VisualView() {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        colorMode="system"
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
