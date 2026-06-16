@@ -1,135 +1,151 @@
-# Plan: Visual Mermaid Editor voor macOS
+# Plan: Visual Mermaid Editor for macOS
 
 ## Context
 
-`visual-mermaid` is nu een lege repo (alleen `README.md` + MIT `LICENSE`). Het doel:
-een **macOS desktop-app** waarin je Mermaid-diagrammen op twee gesynchroniseerde
-manieren bewerkt:
+`visual-mermaid` is currently an empty repo (just `README.md` + the MIT `LICENSE`).
+The goal: a **macOS desktop app** in which you edit Mermaid diagrams in two
+synchronized ways:
 
-1. **Code-view** — typ Mermaid-syntax, met live preview.
-2. **Visuele view** — sleep nodes, dubbelklik om te hernoemen, voeg nodes/edges toe
-   of verwijder ze; die wijzigingen schrijven zich terug naar geldige Mermaid-code.
+1. **Code view** — type Mermaid syntax, with a live preview.
+2. **Visual view** — drag nodes, double-click to rename, add/remove nodes and edges;
+   those changes write themselves back to valid Mermaid code.
 
-De **kern­uitdaging** is dat Mermaid.js maar één kant op werkt (tekst → SVG). Een
-visuele editor vereist een **tweerichtings-sync** tussen Mermaid-tekst en een
-bewerkbaar graph-model. Daar draait dit plan om.
+The **core challenge** is that Mermaid.js only works one way (text → SVG). A visual
+editor requires a **two-way sync** between Mermaid text and an editable graph model.
+That is what this plan is built around.
 
-### Keuzes (afgestemd met gebruiker)
-- **Framework:** Tauri v2 (Rust-schil + web-frontend in native WebView). Klein, native gevoel.
-- **MVP-scope:** alléén **flowchart** met volledige code↔visueel sync. Andere types later.
-- **Distributie:** persoonlijk gebruik — lokaal bouwen/draaien, **geen** code-signing/notarisatie nu.
+### Choices (agreed with the user)
+- **Framework:** Tauri v2 (Rust shell + web frontend in the native WebView). Small, native feel.
+- **MVP scope:** **flowchart only**, with full code↔visual sync. Other diagram types come later.
+- **Distribution:** personal use — build/run locally, **no** code-signing/notarization for now.
 
 ---
 
 ## Tech stack
 
-| Onderdeel | Keuze | Versie-richtlijn |
+| Component | Choice | Version guidance |
 |---|---|---|
-| Desktop-schil | **Tauri v2** | 2.x |
-| Frontend | **React 18 + TypeScript + Vite** | Tauri-aanbevolen toolchain |
-| Code-editor | **Monaco** (`monaco-editor` + `@monaco-editor/react`) | met custom Mermaid-tokenizer |
-| Parser + preview | **mermaid 11** (`mermaid`) | **pin de versie** (zie risico's) |
-| Visueel canvas | **@xyflow/react** (React Flow 12) | node/edge-editor met drag/connect |
-| State | **Zustand** | lichtgewicht store (React Flow gebruikt het intern ook) |
-| Auto-layout | **dagre** | seed-posities voor nieuw geparste nodes (zelfde als Mermaid intern) |
-| Tests | **Vitest** | round-trip + sync-tests |
+| Desktop shell | **Tauri v2** | 2.x |
+| Frontend | **React 18 + TypeScript + Vite** | Tauri-recommended toolchain |
+| Code editor | **Monaco** (`monaco-editor` + `@monaco-editor/react`) | with a custom Mermaid tokenizer |
+| Parser + preview | **mermaid 11** (`mermaid`) | **pin an exact version** (see risks) |
+| Visual canvas | **@xyflow/react** (React Flow 12) | node/edge editor with drag/connect |
+| State | **Zustand** | lightweight store (React Flow uses it internally too) |
+| Auto-layout | **@dagrejs/dagre** | seed positions for newly parsed nodes (maintained fork of the abandoned `dagre`) |
+| Tests | **Vitest** (+ browser mode / Playwright for render checks) | round-trip + sync tests |
 
-Waarom geen Electron: ~90MB bundel + eigen Chromium, niet nodig. Waarom geen native
-SwiftUI: je zou alsnog een WKWebView moeten embedden voor Mermaid + React Flow.
+Why not Electron: ~90 MB bundle + its own Chromium, not needed. Why not native SwiftUI:
+you'd still have to embed a WKWebView for Mermaid + React Flow.
 
 ---
 
-## Architectuur
+## Architecture
 
-**Source of truth:** een eigen **canoniek graph-model** (in Zustand) is de waarheid in rust.
-De actief bewerkte view is tijdelijk leidend (**dual-master, last-edited-wins**):
+**Source of truth:** a dedicated **canonical graph model** (in Zustand) is the resting-state
+truth. The view currently being edited is temporarily authoritative (**dual-master,
+last-edited-wins**):
 
-- **Typt in code-view** → debounce (~300ms) → `mermaid.parse` → bij succes model herbouwen →
-  React Flow-nodes afleiden (posities per node-id behouden; alléén nieuwe nodes auto-layouten).
-  Bij parse-fout: laatste goede model behouden, diagnostic tonen, canvas niet aanraken.
-- **Bewerkt op canvas** → model muteren → emitter draaien → code-editor-tekst vervangen (geherformatteerd).
-- Een `lastEditedBy: 'code' | 'visual'` vlag + dirty-tracking voorkomt feedback-loops.
+- **Typing in the code view** → debounce (~300 ms) → `mermaid` parse → on success rebuild the
+  model → derive React Flow nodes (keep positions per node id; auto-layout only *new* nodes).
+  On parse error: keep the last good model, show a diagnostic, don't touch the canvas.
+- **Editing on the canvas** → mutate the model → run the emitter → replace the code-editor text (reformatted).
+- A `lastEditedBy: 'code' | 'visual'` flag + dirty-tracking prevents feedback loops.
 
 ```
             ┌──────────────────────────────────────────┐
-            │   Canoniek Graph-model (Zustand)          │
+            │   Canonical Graph Model (Zustand)         │
             │   nodes[], edges[], subgraphs[],          │
             │   direction, styles, trivia, positions    │
             └─────────▲────────────────────▲────────────┘
         parse+map     │                    │   mutate
    (debounced, ok)    │                    │
    ┌──────────────────┴───┐        ┌───────┴──────────────────┐
-   │ tekst → model        │        │ model → tekst (emitter)  │
+   │ text → model         │        │ model → text (emitter)   │
    │ (mermaid flowchart db)│        └───────┬──────────────────┘
    └──────────▲───────────┘                 │
         ┌─────┴──────┐      ┌────────────────▼──┐     ┌─────────────┐
-        │ Code (Monaco)│    │ Visueel (@xyflow) │     │ Preview SVG │
+        │ Code (Monaco)│    │ Visual (@xyflow)  │     │ Preview SVG │
         └──────────────┘    └───────────────────┘     │ mermaid.render│
                                                        └─────────────┘
 ```
 
-- **Live preview** rendert altijd uit de huidige *tekst* via `mermaid.render()` (read-only, debounced).
-- De **visuele view** bindt aan het *model* (gemapt naar React Flow-shapes), niet aan de preview-SVG.
+- **Live preview** always renders from the current *text* via `mermaid.render()` (read-only, debounced).
+- The **visual view** binds to the *model* (mapped to React Flow shapes), not to the preview SVG.
+- The preview pane is effectively a "ground-truth render" that catches emitter bugs the canvas
+  would hide. Since the React Flow canvas is itself a rendered view, consider making the SVG
+  preview a **toggle** rather than a permanent third of the window.
 
-### Tekst → model (parsen)
-Voor flowchart gebruikt mermaid 11 nog de legacy **Jison**-parser; de nieuwe
-`@mermaid-js/parser` (Langium) dekt flowchart nog niet. Daarom: parse en lees de
-interne flowchart-**db** (dezelfde aanpak die `@excalidraw/mermaid-to-excalidraw` in
-productie gebruikt):
+### Text → model (parsing)
+For flowcharts, mermaid 11 still uses the legacy **Jison** parser; the newer
+`@mermaid-js/parser` (Langium) does not cover flowchart yet. So: parse and read the internal
+flowchart **db** (the same approach `@excalidraw/mermaid-to-excalidraw` uses in production):
 
 ```ts
-await mermaid.parse(text);                                    // valideer
+// getDiagramFromText both parses AND exposes db; it throws on invalid input,
+// so a separate mermaid.parse() call for validation is redundant — just catch the throw.
 const diagram = await mermaid.mermaidAPI.getDiagramFromText(text);
 const db = diagram.db;
-db.getVertices(); db.getEdges(); db.getSubGraphs(); db.getDirection();
+db.getVertices();   // ⚠️ returns a Map in mermaid 11 (was a plain object in v10) — iterate accordingly
+db.getEdges();
+db.getSubGraphs();
+db.getClasses();    // needed if/when we round-trip classDef styles
+db.getDirection();  // verify this exists on FlowDB for the pinned version (Excalidraw derives direction differently)
 ```
-→ mappen naar het canonieke model. **Isoleer alle db-toegang in één bestand** + version-pin.
+→ map to the canonical model. **Isolate all db access in a single file** + exact version pin.
 
-### Model → tekst (serialiseren)
-Zelfgeschreven, deterministische, pure emitter (volledig te unit-testen). Table-driven:
-shape→bracket (`[]`/`{}`/`(())`), edge-kind→pijl (`-->`/`---`/`-.->`/`==>`), labels `-->|tekst|`,
-subgraphs, `direction`.
+> ⚠️ **API stability:** `mermaidAPI.getDiagramFromText` is **deprecated for external use as of
+> mermaid 11.6, with no public replacement that exposes `db`** — Excalidraw's own source notes
+> this. It works today, but it is the single most upgrade-fragile dependency in this project.
+> Mitigation: pin an exact mermaid version (match what Excalidraw currently ships against),
+> isolate it behind one module, and rely on the version canary test (see Verification).
 
-### Round-trip valkuilen (expliciet)
-- **Comments (`%% ...`) verdwijnen** in de Jison-lexer → bewaar ze + directives/frontmatter via
-  een lichte pre-pass (`trivia.ts`) en her-emit ze.
-- **Formatting wordt genormaliseerd** — na een visuele edit wordt de code geherformatteerd
-  (zoals Prettier). Gedocumenteerd, opzettelijk gedrag; alléén bij visuele edits, nooit tijdens typen.
-- **Posities** worden bewaard per node-id in het model en als `%% @pos`-trivia in het `.mmd`-bestand,
-  zodat de layout een round-trip overleeft en het bestand in andere Mermaid-tools opent.
+### Model → text (serializing)
+Hand-written, deterministic, pure emitter (fully unit-testable). Table-driven:
+shape→bracket (`[]` / `{}` / `(())`), edge-kind→arrow (`-->` / `---` / `-.->` / `==>`),
+labels `-->|text|`, subgraphs, `direction`.
+
+### Round-trip pitfalls (explicit)
+- **Comments (`%% ...`) disappear** in the Jison lexer → preserve them + directives/frontmatter via
+  a light pre-pass (`trivia.ts`) and re-emit them.
+- **Formatting gets normalized** — after a visual edit the code is reformatted (Prettier-style).
+  Documented, intentional behavior; only on visual edits, never while typing.
+- **Positions** are stored per node id in the model and as `%% @pos` trivia in the `.mmd` file,
+  so the layout survives a round-trip and the file still opens in other Mermaid tools. (Because
+  these positions live in comments, the `trivia` pre-pass must extract them *before* parsing,
+  since mermaid drops comments.)
 
 ---
 
-## Projectstructuur (aan te maken)
+## Project structure (to be created)
 
 ```
 visual-mermaid/
 ├─ src-tauri/
 │  ├─ src/main.rs                  # Tauri entrypoint, window/menu
 │  ├─ src/commands.rs              # open/save .mmd, recent files
-│  ├─ tauri.conf.json              # bundle-id, window (signing later)
+│  ├─ tauri.conf.json              # bundle id, window (signing later)
 │  └─ Cargo.toml
 ├─ src/
 │  ├─ main.tsx                     # React root
-│  ├─ App.tsx                      # 3-pane layout (code | visueel | preview) + toolbar
+│  ├─ App.tsx                      # 3-pane layout (code | visual | preview) + toolbar
 │  ├─ model/
-│  │  ├─ types.ts                  # GraphModel, GNode, GEdge, GSubgraph, Trivia  ← EERST ontwerpen
-│  │  ├─ store.ts                  # Zustand + lastEditedBy + dirty flags + loop-guards
-│  │  └─ shapes.ts                 # shape↔bracket + edge-kind↔pijl tabellen
+│  │  ├─ types.ts                  # GraphModel, GNode, GEdge, GSubgraph, Trivia  ← DESIGN FIRST
+│  │  ├─ store.ts                  # Zustand + lastEditedBy + dirty flags + loop guards
+│  │  └─ shapes.ts                 # shape↔bracket + edge-kind↔arrow tables
 │  ├─ sync/
-│  │  ├─ parseTextToModel.ts       # mermaid db → GraphModel  ← hoogste risico
-│  │  ├─ serializeModelToText.ts   # GraphModel → mermaid-tekst (pure emitter)
-│  │  ├─ trivia.ts                 # comments/directives/posities extraheren + her-emit
-│  │  └─ layout.ts                 # dagre auto-layout voor nieuwe nodes
+│  │  ├─ parseTextToModel.ts       # mermaid db → GraphModel  ← highest risk
+│  │  ├─ serializeModelToText.ts   # GraphModel → mermaid text (pure emitter)
+│  │  ├─ trivia.ts                 # extract + re-emit comments/directives/positions
+│  │  └─ layout.ts                 # dagre auto-layout for new nodes
 │  ├─ views/
-│  │  ├─ CodeView.tsx              # Monaco + Mermaid-taal + error-diagnostics
+│  │  ├─ CodeView.tsx              # Monaco + Mermaid language + error diagnostics
 │  │  ├─ VisualView.tsx            # React Flow canvas + custom nodes/edges
 │  │  ├─ Preview.tsx               # mermaid.render() SVG, debounced
 │  │  └─ nodes/                    # ProcessNode, DecisionNode, RoundNode, ...
 │  ├─ flow/
-│  │  ├─ modelToFlow.ts            # GraphModel → {nodes,edges} voor React Flow
-│  │  └─ flowToModel.ts            # React Flow change-events → model-mutaties
-│  ├─ mermaid/mermaidLanguage.ts   # Monarch tokenizer voor Monaco
+│  │  ├─ modelToFlow.ts            # GraphModel → {nodes,edges} for React Flow
+│  │  └─ flowToModel.ts            # React Flow change events → model mutations
+│  ├─ mermaid/mermaidLanguage.ts   # Monarch tokenizer for Monaco
 │  └─ lib/debounce.ts
 ├─ tests/
 │  ├─ roundtrip.test.ts
@@ -137,74 +153,81 @@ visual-mermaid/
 ├─ package.json · vite.config.ts · tsconfig.json
 ```
 
-### Belangrijkste bestanden
-- **`model/types.ts`** — het modelcontract; alles hangt eraan. Eerst ontwerpen.
-- **`sync/parseTextToModel.ts`** — tekst→model via mermaid-db; meest versie-gevoelig, achter tests.
-- **`sync/serializeModelToText.ts`** — deterministische emitter; pure functie.
-- **`model/store.ts`** — orkestreert dual-master sync (debounce, lastEditedBy, loop-guards, posities).
-- **`flow/modelToFlow.ts` + `flowToModel.ts`** — binding tussen model en React Flow.
+### Most important files
+- **`model/types.ts`** — the model contract; everything hangs off it. Design first.
+- **`sync/parseTextToModel.ts`** — text→model via the mermaid db; most version-sensitive, behind tests.
+- **`sync/serializeModelToText.ts`** — deterministic emitter; pure function.
+- **`model/store.ts`** — orchestrates dual-master sync (debounce, lastEditedBy, loop guards, positions).
+- **`flow/modelToFlow.ts` + `flowToModel.ts`** — binding between the model and React Flow.
 
 ---
 
-## Bouwplan (gefaseerd)
+## Build plan (phased)
 
-### Fase 0 — Scaffold
-`npm create tauri-app@latest` (React + TS + Vite, Tauri v2). Dependencies toevoegen:
-`mermaid @xyflow/react monaco-editor @monaco-editor/react zustand dagre` (+ `vitest` dev).
-3-pane layout-shell. Verifieer dat het als macOS-venster opent (`npm run tauri dev`).
+### Phase 0 — Scaffold
+`npm create tauri-app@latest` (React + TS + Vite, Tauri v2). Add dependencies:
+`mermaid @xyflow/react monaco-editor @monaco-editor/react zustand @dagrejs/dagre` (+ `vitest` dev).
+3-pane layout shell. Verify it opens as a macOS window (`npm run tauri dev`).
 
-### Fase 1 — MVP: flowchart met tweerichtings-sync (de kern)
-1. `model/types.ts` + emitter (`serializeModelToText`) + round-trip-tests op fixtures.
-2. `parseTextToModel` via mermaid-db; dagre auto-layout voor posities.
-3. Code-view (Monaco) → debounced parse → model; live preview uit tekst.
-4. Visuele view (React Flow) gebonden aan model: slepen, dubbelklik-hernoemen,
-   node toevoegen/verwijderen, edge tekenen → model muteren → tekst her-emit.
-5. Dual-master sync + loop-guards bedraden. Open/Save `.mmd` via Tauri-commands.
+### Phase 1 — MVP: flowchart with two-way sync (the core)
+1. `model/types.ts` + emitter (`serializeModelToText`) + round-trip tests on fixtures.
+2. `parseTextToModel` via the mermaid db; dagre auto-layout for positions.
+3. Code view (Monaco) → debounced parse → model; live preview from text.
+4. Visual view (React Flow) bound to the model: dragging, double-click rename,
+   add/remove node, draw edge → mutate model → re-emit text.
+5. Wire up dual-master sync + loop guards. Open/Save `.mmd` via Tauri commands.
 
-**MVP klaar wanneer:** flowchart-tekst typen → verschijnt op canvas; slepen/hernoemen/
-toevoegen/verwijderen/verbinden op canvas → geldige tekst update; round-trip-tests groen;
-comments behouden via trivia.
+**MVP done when:** typing flowchart text → appears on the canvas; drag/rename/add/remove/connect
+on the canvas → valid text updates; round-trip tests green; comments preserved via trivia.
 
-### Fase 2 — Polish (later)
-Shapes-palet, edge-stijlen, subgraphs, `direction`-toggle, undo/redo (Zustand history),
-error-diagnostics in de gutter, positie-persistentie, theming, export SVG/PNG.
+### Phase 2 — Polish (later)
+Shapes palette, edge styles, subgraphs, `direction` toggle, undo/redo (Zustand history),
+error diagnostics in the gutter, position persistence, theming, export SVG/PNG.
 
-### Fase 3 — Meer diagramtypes (later)
-`DiagramAdapter`-interface (`parse`, `serialize`, `toFlow`, `fromFlow`) zodat elk type een
-pluggable module is. Volgorde: **sequence** → state → class → ER.
+### Phase 3 — More diagram types (later)
+A `DiagramAdapter` interface (`parse`, `serialize`, `toFlow`, `fromFlow`) so each type is a
+pluggable module. Order: **sequence** → state → class → ER.
 
-### Fase 4 — Distributie (later, indien gewenst)
-Code-signing + notarisatie in `tauri.conf.json`, DMG, auto-update, `.mmd`-bestandsassociatie.
-
----
-
-## Verificatie
-
-- **Round-trip property-tests (belangrijkst):** corpus `.mmd`-fixtures (simpel, branching,
-  edge-labels, subgraphs, alle shapes, comments). Assert: `parse(serialize(parse(text)))` levert
-  een **semantisch gelijk** model op (test op het model, niet de string — formatting wordt bewust genormaliseerd).
-- **Render-equivalentie:** `mermaid.render(serialize(model))` slaagt zonder fout (vangt ongeldige emitter-output).
-- **Trivia-behoud:** input met `%% comment` overleeft een visuele-edit-cyclus.
-- **Sync-loop-guard:** simuleer "model-edit → emit tekst → text-change-event" en assert dat dit
-  geen nieuwe parse triggert (geen oneindige loop, geen cursor-sprong).
-- **Mermaid-versie-canary:** test die hard faalt als `db.getVertices/getEdges`-vorm wijzigt na upgrade.
-- **Handmatig op macOS:** `npm run tauri dev` (dev-loop); `npm run tauri build` voor lokale `.app`.
-  Smoke-test: open/edit/save, beide views syncen.
+### Phase 4 — Distribution (later, if wanted)
+Code-signing + notarization in `tauri.conf.json`, DMG, auto-update, `.mmd` file association.
 
 ---
 
-## Risico's
+## Verification
 
-1. **Onofficiële parser-API** (`getVertices/getEdges` is geen stabiel contract) → mermaid version-pinnen,
-   db-toegang in één bestand isoleren, canary-test. (Excalidraw draait op exact deze aanpak → gederisked.)
-2. **Round-trip-verlies** (comments/formatting/directives) → trivia pre-pass + expliciete "reformat bij visuele edit"-UX.
-3. **Layout-instabiliteit** bij her-import → posities per node-id behouden; alleen écht nieuwe nodes auto-layouten.
-4. **Sync-feedback-loops / cursor-sprongen** → `lastEditedBy`-vlag; tekst alléén vervangen bij visuele edits; expliciet testen.
-5. **WKWebView-quirks** (Tauri = Safari-engine) → Monaco + React Flow + mermaid vroeg testen, niet pas aan het eind.
+- **Round-trip property tests (most important):** a corpus of `.mmd` fixtures (simple, branching,
+  edge labels, subgraphs, all shapes, comments). Assert that `parse(serialize(parse(text)))` yields
+  a **semantically equal** model (test on the model, not the string — formatting is deliberately normalized).
+- **Render equivalence:** `mermaid.render(serialize(model))` succeeds without error (catches invalid
+  emitter output). Note: `mermaid.render()` needs real browser layout APIs (`getBBox`, SVG measurement)
+  that jsdom/happy-dom don't implement, so this test must run under **Vitest browser mode or Playwright**,
+  not the plain node test env. The pure emitter and db-extraction tests can stay in node.
+- **Trivia preservation:** input with `%% comment` survives a visual-edit cycle.
+- **Sync loop guard:** simulate "model edit → emit text → text-change event" and assert it does **not**
+  trigger a new parse (no infinite loop, no cursor jump).
+- **Mermaid version canary:** a test that fails hard if the shape of `db.getVertices/getEdges` changes
+  after an upgrade — this is the load-bearing safeguard for the deprecated parser API.
+- **Manual on macOS:** `npm run tauri dev` (dev loop); `npm run tauri build` for a local `.app`.
+  Smoke test: open/edit/save, both views stay in sync.
 
-### Vastgelegde defaults (waren open vragen)
-- **Bestandsformaat op schijf:** plain `.mmd` met posities als `%% @pos`-trivia (één bestand, opent in andere tools).
-- **Reformatten bij visuele edit:** geaccepteerd en gedocumenteerd (onvermijdelijk door Mermaids lossy parse).
-- **Conflict-policy:** bij syntax-fout in code-view → laatste goede model behouden + non-blocking diagnostic.
-- **Diagramtype #2:** sequence (na flowchart).
-- **Auto-layout:** dagre (lichter, zelfde als Mermaid).
+---
+
+## Risks
+
+1. **Deprecated parser API** (`mermaidAPI.getDiagramFromText` + `getVertices/getEdges` — deprecated
+   for external use since mermaid 11.6, with no public successor that exposes `db`) → **pin an exact
+   mermaid version**, isolate db access in one file, keep the canary test. Excalidraw runs on exactly
+   this approach in production — which de-risks the *technique* but not the *upgrade path*: even the
+   reference implementation is on borrowed time, so watch the changelog on every bump.
+2. **Round-trip loss** (comments/formatting/directives) → trivia pre-pass + explicit "reformat on visual edit" UX.
+3. **Layout instability** on re-import → keep positions per node id; only auto-layout genuinely new nodes.
+4. **Sync feedback loops / cursor jumps** → `lastEditedBy` flag; replace text only on visual edits; test explicitly.
+5. **WKWebView quirks** (Tauri = Safari engine; Monaco workers + Vite + Tauri asset protocol can be
+   fiddly) → test Monaco + React Flow + mermaid early, not at the end.
+
+### Locked-in defaults (were open questions)
+- **On-disk file format:** plain `.mmd` with positions as `%% @pos` trivia (one file, opens in other tools).
+- **Reformatting on visual edit:** accepted and documented (unavoidable given Mermaid's lossy parse).
+- **Conflict policy:** on a syntax error in the code view → keep the last good model + a non-blocking diagnostic.
+- **Diagram type #2:** sequence (after flowchart).
+- **Auto-layout:** dagre (lightweight, same engine Mermaid uses for flowchart).
