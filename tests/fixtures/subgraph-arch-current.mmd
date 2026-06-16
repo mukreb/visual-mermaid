@@ -1,0 +1,60 @@
+flowchart TB
+  %% Huidige architectuur opreis.nl
+  %% Railbase (Supabase) is nog NIET actief; alle data en operatie loopt via Google Sheets.
+  %% Render: mermaid.live, VS Code Mermaid-extensie, GitHub of Markchart.
+
+  customers(["Klanten"])
+
+  %% ---------- Inbound kanalen ----------
+  subgraph channels["Inbound kanalen"]
+    trengo["Trengo<br/>alleen WhatsApp"]
+    gmail["Gedeelde inbox<br/>info@opreis.nl (Gmail)"]
+    calendly["Calendly<br/>afspraken"]
+  end
+
+  %% ---------- Klantkant / website ----------
+  subgraph site["Klantkant"]
+    wp["Website<br/>WordPress"]
+    babook["Boekingsmodule<br/>BA Book Everything"]
+  end
+
+  %% ---------- Prijsbronnen en inkoop ----------
+  subgraph sources["Prijsbronnen en inkoop"]
+    ratehawk["RateHawk<br/>hotelprijzen + hotelboeking"]
+    loco["locomocheap.nl<br/>scraper Michel - treinprijzen"]
+  end
+
+  %% ---------- Operationele spil ----------
+  sheets[("Google Sheets<br/>spil: boekingen, prijsdata,<br/>fulfillment, betaal-drafts")]
+
+  %% ---------- Financieel ----------
+  subgraph fin["Financieel"]
+    stripe["Stripe<br/>betaling"]
+    moneybird["Moneybird<br/>boekhouding"]
+    payhawk["Payhawk<br/>virtuele creditcards - treinboekingen"]
+  end
+
+  %% ---------- Flows: klant en boeking ----------
+  customers --> wp
+  customers --> trengo
+  customers --> gmail
+  customers --> calendly
+  wp --> babook
+  babook -->|boeking| sheets
+
+  %% ---------- Flows: fulfillment vanuit de sheet ----------
+  sheets -->|hotel boeken| ratehawk
+  sheets -->|trein boeken, handmatig| payhawk
+  trengo -.->|klantverzoeken| sheets
+  gmail -.->|klantverzoeken| sheets
+
+  %% ---------- Flows: prijsdata in de sheet ----------
+  ratehawk -->|hotelprijzen| sheets
+  loco -->|treinprijzen| sheets
+  sheets -.->|product + prijs| wp
+
+  %% ---------- Flows: betaling via Gmail-draft + Stripe-link ----------
+  sheets -->|draft e-mail + Stripe-link| gmail
+  gmail -->|medewerker verstuurt| customers
+  customers -->|betaalt via link| stripe
+  stripe --> moneybird

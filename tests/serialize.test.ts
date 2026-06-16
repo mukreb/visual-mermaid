@@ -88,7 +88,7 @@ describe("serializeModelToText", () => {
         subgraphs: [{ id: "g1", title: "Group", nodeIds: ["A", "B"] }],
       }),
     );
-    expect(out).toContain("    subgraph g1 [Group]");
+    expect(out).toContain('    subgraph g1["Group"]');
     expect(out).toContain('        A["A"]');
     expect(out).toContain('        B["B"]');
     expect(out).toContain("    end");

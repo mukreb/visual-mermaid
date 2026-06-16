@@ -98,7 +98,18 @@ export async function parseTextToModel(text: string): Promise<GraphModel> {
     return sg;
   });
 
-  return { direction, nodes, edges, subgraphs, trivia };
+  // `style <subgraphId> ...` / `class <subgraphId> ...` make mermaid's db emit a
+  // stray vertex whose id is a subgraph id. Mermaid styles the cluster, not a
+  // node, so drop these phantom vertices (only when nothing connects to them).
+  const subgraphIds = new Set(subgraphs.map((s) => s.id));
+  const referenced = new Set<string>();
+  for (const e of edges) {
+    referenced.add(e.source);
+    referenced.add(e.target);
+  }
+  const realNodes = nodes.filter((n) => !(subgraphIds.has(n.id) && !referenced.has(n.id)));
+
+  return { direction, nodes: realNodes, edges, subgraphs, trivia };
 }
 
 function normalizeDirection(d: string | undefined): Direction {

@@ -37,6 +37,12 @@ export interface EditorState {
   /** Last successful parse diagnostic, or null. */
   error: string | null;
   lastEditedBy: EditSource;
+  /**
+   * Bumped each time a whole new document is loaded (open/new/initial). The
+   * canvas watches this to refit the view — incremental edits don't bump it, so
+   * typing in the code view never makes the canvas jump.
+   */
+  docVersion: number;
 
   past: GraphModel[];
   future: GraphModel[];
@@ -70,6 +76,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   savedText: "",
   error: null,
   lastEditedBy: null,
+  docVersion: 0,
   past: [],
   future: [],
 
@@ -132,6 +139,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       savedText: text,
       lastEditedBy: "code",
       error: null,
+      docVersion: get().docVersion + 1,
       past: [],
       future: [],
     });
