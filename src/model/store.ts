@@ -73,6 +73,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ),
     };
 
+    // Stale-parse guard: if the text changed while we awaited the parse (a newer
+    // keystroke or a file open), this result is outdated — discard it.
+    if (get().text !== text) return;
+
     set({ model: layoutNewNodes(merged), error: null, lastEditedBy: "code" });
   },
 

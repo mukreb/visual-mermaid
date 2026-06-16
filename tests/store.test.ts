@@ -43,6 +43,28 @@ describe("editor store", () => {
     expect(after.model).toBe(before); // same reference — model untouched
   });
 
+  it("ignores a stale parse whose text was superseded mid-flight", async () => {
+    await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
+    const sample = store.getState().model;
+
+    // Kick off a parse, then immediately supersede the text before it resolves.
+    const inFlight = store.getState().parseNow();
+    store.getState().setText("flowchart TD\n  X[New] --> Y[New]\n");
+    await inFlight;
+
+    // The stale result for the old text must not have been committed.
+    expect(store.getState().model).toBe(sample);
+    expect(store.getState().model.nodes.map((n) => n.id).sort()).toEqual(["A", "B"]);
+  });
+
+  it("toolbar-added nodes get a position (no stacking, emits @pos)", async () => {
+    await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
+    store.getState().mutate((m) => addNode(m, { label: "Extra" }));
+    const added = store.getState().model.nodes.find((n) => n.label === "Extra");
+    expect(added?.position).toBeDefined();
+    expect(store.getState().text).toContain("%% @pos");
+  });
+
   it("keeps the last good model on a parse error", async () => {
     await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
     const good = store.getState().model;

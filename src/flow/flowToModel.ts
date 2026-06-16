@@ -19,15 +19,23 @@ function nextEdgeId(model: GraphModel): string {
   return `e${i}`;
 }
 
+/** Deterministic cascading offset so toolbar-added nodes don't stack at the origin. */
+function cascadePosition(index: number): { x: number; y: number } {
+  const step = index % 10;
+  return { x: 80 + step * 36, y: 80 + step * 36 };
+}
+
 export function addNode(
   model: GraphModel,
   opts: { label?: string; shape?: NodeShape; position?: { x: number; y: number } } = {},
 ): GraphModel {
+  // Always give a position: the visual mutation path doesn't run auto-layout, so
+  // without one the node would render at {0,0} and emit no @pos trivia.
   const node: GNode = {
     id: nextNodeId(model),
     label: opts.label ?? "New",
     shape: opts.shape ?? "rect",
-    position: opts.position,
+    position: opts.position ?? cascadePosition(model.nodes.length),
   };
   return { ...model, nodes: [...model.nodes, node] };
 }
