@@ -4,11 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { addNode } from "./flow/flowToModel";
 import { setupAppMenu } from "./lib/appMenu";
 import { setupCloseGuard } from "./lib/appWindow";
+import { deriveExportName, renderDiagramSvg, svgToPng } from "./lib/exportDiagram";
 import { flushFocusedInput } from "./lib/flushInput";
-import { confirmDiscard, isTauri, openMermaidFile, saveMermaidFile } from "./lib/tauriFiles";
+import {
+  confirmDiscard,
+  exportBinaryFile,
+  exportTextFile,
+  isTauri,
+  openMermaidFile,
+  saveMermaidFile,
+} from "./lib/tauriFiles";
 import { useEditorStore } from "./model/store";
 import type { Direction } from "./model/types";
 import { CodeView } from "./views/CodeView";
+import { ExportMenu } from "./views/ExportMenu";
 import {
   DirectionIcon,
   EyeIcon,
@@ -20,6 +29,10 @@ import {
 } from "./views/icons";
 import { Preview } from "./views/Preview";
 import { VisualView } from "./views/VisualView";
+
+const prefersDark = () =>
+  typeof window !== "undefined" &&
+  !!window.matchMedia?.("(prefers-color-scheme: dark)").matches;
 
 const SAMPLE = `flowchart TD
     A[Start] --> B{Decision}
@@ -95,6 +108,50 @@ export default function App() {
     await loadText(BLANK);
   };
 
+  const reportExportError = async (e: unknown) => {
+    const msg = `Export failed: ${e instanceof Error ? e.message : String(e)}`;
+    if (isTauri()) {
+      try {
+        const { message } = await import("@tauri-apps/plugin-dialog");
+        await message(msg, { title: "Export", kind: "error" });
+        return;
+      } catch {
+        /* fall through to the browser alert */
+      }
+    }
+    window.alert(msg);
+  };
+
+  const onExportSvg = async () => {
+    flushFocusedInput();
+    try {
+      const svg = await renderDiagramSvg(useEditorStore.getState().text, prefersDark() ? "dark" : "light");
+      await exportTextFile(svg, deriveExportName(path, "svg"), {
+        name: "SVG image",
+        ext: "svg",
+        mime: "image/svg+xml",
+      });
+    } catch (e) {
+      await reportExportError(e);
+    }
+  };
+
+  const onExportPng = async () => {
+    flushFocusedInput();
+    try {
+      const dark = prefersDark();
+      const svg = await renderDiagramSvg(useEditorStore.getState().text, dark ? "dark" : "light");
+      const png = await svgToPng(svg, { scale: 2, background: dark ? "#1e1e1e" : "#ffffff" });
+      await exportBinaryFile(png, deriveExportName(path, "png"), {
+        name: "PNG image",
+        ext: "png",
+        mime: "image/png",
+      });
+    } catch (e) {
+      await reportExportError(e);
+    }
+  };
+
   const togglePreview = () => setShowPreview((v) => !v);
 
   const cycleDirection = () => {
@@ -104,7 +161,7 @@ export default function App() {
   };
 
   // Keep the latest handlers reachable from the once-installed menu / key listener.
-  const actions = { onNew, onOpen, onSave, onSaveAs, togglePreview };
+  const actions = { onNew, onOpen, onSave, onSaveAs, onExportSvg, onExportPng, togglePreview };
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
 
@@ -115,6 +172,8 @@ export default function App() {
       onOpen: () => actionsRef.current.onOpen(),
       onSave: () => actionsRef.current.onSave(),
       onSaveAs: () => actionsRef.current.onSaveAs(),
+      onExportSvg: () => actionsRef.current.onExportSvg(),
+      onExportPng: () => actionsRef.current.onExportPng(),
       togglePreview: () => actionsRef.current.togglePreview(),
     });
     let unlisten: (() => void) | undefined;
@@ -153,6 +212,9 @@ export default function App() {
       } else if (key === "s") {
         e.preventDefault();
         void (e.shiftKey ? actionsRef.current.onSaveAs() : actionsRef.current.onSave());
+      } else if (key === "e" && e.shiftKey) {
+        e.preventDefault();
+        void actionsRef.current.onExportSvg();
       } else if (key === "p" && e.altKey) {
         e.preventDefault();
         actionsRef.current.togglePreview();
@@ -177,6 +239,7 @@ export default function App() {
             <SaveIcon />
             <span>Save</span>
           </button>
+          <ExportMenu onSvg={onExportSvg} onPng={onExportPng} />
           <span className="tsep" />
           <button
             className="tbtn"

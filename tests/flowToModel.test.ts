@@ -44,4 +44,11 @@ describe("flowToModel pure helpers", () => {
     expect(m.nodes.map((n) => n.id)).toEqual(["n2"]);
     expect(m.edges).toHaveLength(0);
   });
+
+  it("addNode applies the palette's shape and drop position", () => {
+    const m = addNode(emptyModel(), { shape: "rhombus", position: { x: 120, y: 40 } });
+    expect(m.nodes).toHaveLength(1);
+    expect(m.nodes[0].shape).toBe("rhombus");
+    expect(m.nodes[0].position).toEqual({ x: 120, y: 40 });
+  });
 });
