@@ -6,6 +6,21 @@ middle, see a live render on the right — all three stay in sync.
 
 See [`PLAN.md`](./PLAN.md) for the full design and rationale.
 
+## Download (macOS)
+
+Grab the latest `.dmg` from the
+[**Releases**](https://github.com/mukreb/visual-mermaid/releases) page, open it,
+and drag **Visual Mermaid** to your Applications folder. The build is a universal
+binary, so it runs on both Apple Silicon and Intel Macs.
+
+The download is **not signed with an Apple Developer ID**, so the first time you
+launch it macOS Gatekeeper will block it. To open it anyway:
+
+- Right-click (or Control-click) the app and choose **Open**, then **Open** again, **or**
+- run `xattr -dr com.apple.quarantine "/Applications/Visual Mermaid.app"` in Terminal.
+
+You only need to do this once.
+
 ## Status
 
 **MVP core (implemented & tested):**
@@ -58,6 +73,30 @@ npm run tauri build   # local .app / .dmg (unsigned — personal use)
 # the repo ships a placeholder icon; to use your own, drop in a square PNG:
 npm run tauri icon path/to/logo.png
 ```
+
+## Cut a release (downloadable build)
+
+The [`Release macOS app`](.github/workflows/release.yml) GitHub Actions workflow
+builds the universal `.dmg` on a macOS runner and attaches it to a GitHub Release —
+no Mac required on your end.
+
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json`, and
+   `src-tauri/Cargo.toml` so they match.
+2. Tag the commit and push the tag:
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. The workflow builds the app and publishes a release named after the tag with the
+   `.dmg` attached. (You can also run it manually from the **Actions** tab and pass a
+   tag.)
+
+The build is unsigned by default. To ship a signed + notarized `.dmg`, add your
+Apple Developer credentials as repository secrets (`APPLE_CERTIFICATE`,
+`APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`,
+`APPLE_PASSWORD`, `APPLE_TEAM_ID`) — the workflow picks them up automatically.
 
 ## Layout
 
