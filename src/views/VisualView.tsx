@@ -9,9 +9,11 @@ import {
   Controls,
   Panel,
   ReactFlow,
+  ReactFlowProvider,
   addEdge,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type EdgeChange,
   type NodeChange,
@@ -19,6 +21,7 @@ import {
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  addNode,
   connect,
   moveNode,
   removeEdge,
@@ -33,40 +36,28 @@ import { useEditorStore } from "../model/store";
 import type { EdgeKind, GEdge, GNode, NodeShape } from "../model/types";
 import { GroupNode } from "./nodes/GroupNode";
 import { ShapeNode } from "./nodes/ShapeNode";
+import { ShapePalette, SHAPE_DND_MIME } from "./ShapePalette";
+import { EDGE_OPTIONS, SHAPE_OPTIONS } from "./shapeOptions";
 
 const nodeTypes = { shape: ShapeNode, group: GroupNode };
 
-const SHAPE_OPTIONS: [NodeShape, string][] = [
-  ["rect", "Rectangle"],
-  ["round", "Rounded"],
-  ["stadium", "Stadium"],
-  ["subroutine", "Subroutine"],
-  ["cylinder", "Cylinder"],
-  ["circle", "Circle"],
-  ["doublecircle", "Double circle"],
-  ["rhombus", "Decision"],
-  ["hexagon", "Hexagon"],
-  ["parallelogram", "Parallelogram"],
-  ["parallelogram_alt", "Parallelogram alt"],
-  ["trapezoid", "Trapezoid"],
-  ["trapezoid_alt", "Trapezoid alt"],
-];
-
-const EDGE_OPTIONS: [EdgeKind, string][] = [
-  ["arrow", "Arrow  -->"],
-  ["open", "Line  ---"],
-  ["dotted", "Dotted  -.->"],
-  ["dotted_open", "Dotted line  -.-"],
-  ["thick", "Thick  ==>"],
-  ["thick_open", "Thick line  ==="],
-];
-
+// React Flow's screenToFlowPosition (used for drop placement) needs the provider
+// context, so the canvas lives in an inner component wrapped below.
 export function VisualView() {
+  return (
+    <ReactFlowProvider>
+      <VisualCanvas />
+    </ReactFlowProvider>
+  );
+}
+
+function VisualCanvas() {
   const model = useEditorStore((s) => s.model);
   const mutate = useEditorStore((s) => s.mutate);
   // Remount React Flow when a whole new document loads so `fitView` re-runs and
   // frames the freshly loaded graph (the prop only auto-fits on mount).
   const docVersion = useEditorStore((s) => s.docVersion);
+  const { screenToFlowPosition } = useReactFlow();
 
   const flow = useMemo(() => modelToFlow(model), [model]);
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>(flow.nodes);
@@ -120,6 +111,31 @@ export function VisualView() {
     [setEdges, mutate],
   );
 
+  // Shapes palette: click-to-add (cascading position) and drag-and-drop (dropped
+  // at the cursor, mapped from screen to flow coordinates).
+  const addShape = useCallback(
+    (shape: NodeShape) => mutate((m) => addNode(m, { shape })),
+    [mutate],
+  );
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes(SHAPE_DND_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  }, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      const shape = e.dataTransfer.getData(SHAPE_DND_MIME) as NodeShape;
+      if (!shape) return;
+      e.preventDefault();
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      mutate((m) => addNode(m, { shape, position }));
+    },
+    [screenToFlowPosition, mutate],
+  );
+
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: AppNode) => {
       if (isGroupId(node.id) || node.type !== "shape") return;
@@ -156,11 +172,16 @@ export function VisualView() {
         onConnect={onConnect}
         onNodeDoubleClick={onNodeDoubleClick}
         onSelectionChange={onSelectionChange}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         fitView
         deleteKeyCode={["Backspace", "Delete"]}
       >
         <Background />
         <Controls />
+        <Panel position="top-left">
+          <ShapePalette onAdd={addShape} />
+        </Panel>
         {(selNode || selEdge) && (
           <Panel position="top-right">
             {selNode ? (

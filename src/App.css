@@ -299,3 +299,90 @@ body,
 .inspector-delete:hover {
   background: rgba(224, 82, 74, 0.12);
 }
+
+/* Toolbar export dropdown. */
+.export-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.export-pop {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  z-index: 20;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.export-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: default;
+}
+
+.export-item:hover {
+  background: var(--hover);
+}
+
+/* Shapes palette overlaid on the canvas (top-left React Flow panel). */
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: grab;
+  text-align: left;
+}
+
+.palette-item:hover {
+  background: var(--hover);
+}
+
+.palette-item:active {
+  cursor: grabbing;
+}
+
+.palette-swatch {
+  flex: none;
+  width: 22px;
+  height: 16px;
+  background: var(--node-bg);
+  border: 1.5px solid var(--accent);
+}
+
+.palette-label {
+  white-space: nowrap;
+  pointer-events: none;
+}

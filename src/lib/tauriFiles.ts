@@ -45,6 +45,57 @@ export async function saveMermaidFile(
   return { saved: true, path: target };
 }
 
+export interface ExportFilter {
+  /** Human-readable filter name shown in the save dialog. */
+  name: string;
+  /** File extension without the dot, e.g. "svg" or "png". */
+  ext: string;
+  /** Blob MIME type for the browser-download fallback. */
+  mime: string;
+}
+
+/** Save text content to a user-chosen path (export). Browser: downloads a file. */
+export async function exportTextFile(
+  content: string,
+  defaultName: string,
+  filter: ExportFilter,
+): Promise<boolean> {
+  if (!isTauri()) {
+    browserDownload(new Blob([content], { type: filter.mime }), defaultName);
+    return true;
+  }
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+  const target = await save({
+    defaultPath: defaultName,
+    filters: [{ name: filter.name, extensions: [filter.ext] }],
+  });
+  if (!target) return false;
+  await writeTextFile(target, content);
+  return true;
+}
+
+/** Save binary content to a user-chosen path (export). Browser: downloads a file. */
+export async function exportBinaryFile(
+  bytes: Uint8Array<ArrayBuffer>,
+  defaultName: string,
+  filter: ExportFilter,
+): Promise<boolean> {
+  if (!isTauri()) {
+    browserDownload(new Blob([bytes], { type: filter.mime }), defaultName);
+    return true;
+  }
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const { writeFile } = await import("@tauri-apps/plugin-fs");
+  const target = await save({
+    defaultPath: defaultName,
+    filters: [{ name: filter.name, extensions: [filter.ext] }],
+  });
+  if (!target) return false;
+  await writeFile(target, bytes);
+  return true;
+}
+
 /** Confirm a destructive action (uses the native dialog under Tauri). */
 export async function confirmDiscard(message: string): Promise<boolean> {
   if (!isTauri()) return window.confirm(message);
@@ -73,11 +124,14 @@ function browserOpen(): Promise<OpenedFile | null> {
 }
 
 function browserSave(text: string): void {
-  const blob = new Blob([text], { type: "text/plain" });
+  browserDownload(new Blob([text], { type: "text/plain" }), "diagram.mmd");
+}
+
+function browserDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "diagram.mmd";
+  a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
 }

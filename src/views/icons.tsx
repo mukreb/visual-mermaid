@@ -64,6 +64,16 @@ export function RedoIcon({ className }: IconProps) {
   );
 }
 
+export function DownloadIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M12 3v12" />
+      <path d="m8 11 4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </svg>
+  );
+}
+
 export function EyeIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className} aria-hidden>

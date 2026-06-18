@@ -12,6 +12,8 @@ export interface MenuHandlers {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onExportSvg: () => void;
+  onExportPng: () => void;
   togglePreview: () => void;
 }
 
@@ -51,6 +53,16 @@ export async function setupAppMenu(handlers: MenuHandlers): Promise<void> {
           text: "Save As…",
           accelerator: "CmdOrCtrl+Shift+S",
           action: () => handlers.onSaveAs(),
+        }),
+        await sep(),
+        await MenuItem.new({
+          text: "Export as SVG…",
+          accelerator: "CmdOrCtrl+Shift+E",
+          action: () => handlers.onExportSvg(),
+        }),
+        await MenuItem.new({
+          text: "Export as PNG…",
+          action: () => handlers.onExportPng(),
         }),
       ],
     });

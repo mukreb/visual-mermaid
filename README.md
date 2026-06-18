@@ -35,17 +35,21 @@ You only need to do this once.
 - React UI: Monaco code view (with inline error markers), React Flow canvas, live
   `mermaid.render()` preview, and a selection **inspector** to edit a node's
   shape/label or an edge's style/label.
+- **Shapes palette** on the canvas: drag a shape onto the canvas (dropped at the
+  cursor) or click it to add a node.
+- **Export** the diagram as **SVG** or **PNG** (rendered fresh, so it works even
+  with the preview pane hidden).
 - **Undo/redo** (model history), **dirty tracking** with an unsaved indicator, and
   subgraphs drawn as containers on the canvas.
 - Native macOS feel: unified title bar, icon toolbar, live light/dark theming, a
-  **menu bar** + keyboard shortcuts (⌘N/⌘O/⌘S/⇧⌘S, ⌘Z/⇧⌘Z, ⌥⌘P), and an
+  **menu bar** + keyboard shortcuts (⌘N/⌘O/⌘S/⇧⌘S, ⇧⌘E, ⌘Z/⇧⌘Z, ⌥⌘P), and an
   unsaved-changes prompt on close.
 - Tauri v2 shell with open/save `.mmd` (dialog + fs plugins).
 
-39 tests pass (pure emitter, trivia, round-trip over fixtures, store loop-guard,
-undo/redo + dirty tracking, the editing helpers, and the mermaid db canary). The
-round-trip property tests assert that `parse(serialize(parse(text)))` is
-**semantically equal** — formatting is intentionally normalized.
+60 tests pass (pure emitter, trivia, round-trip over fixtures, store loop-guard,
+undo/redo + dirty tracking, the editing helpers, export helpers, and the mermaid
+db canary). The round-trip property tests assert that `parse(serialize(parse(text)))`
+is **semantically equal** — formatting is intentionally normalized.
 
 > Note: `mermaid.render()` needs a real browser (`getBBox`), so the live-render
 > equivalence check belongs in browser mode / Playwright, not the jsdom unit run.
