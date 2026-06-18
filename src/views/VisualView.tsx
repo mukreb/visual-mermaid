@@ -19,7 +19,7 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addNode,
   connect,
@@ -69,9 +69,14 @@ function VisualCanvas() {
   // fresh nodes are in place the moment React Flow (re)mounts. That lets the
   // built-in `fitView` prop frame the new graph after measurement on a load —
   // an effect would run a frame too late and remount with the previous graph.
-  const lastModel = useRef(model);
-  if (lastModel.current !== model) {
-    lastModel.current = model;
+  // The previous model is tracked in state (not a ref): under StrictMode's
+  // double-rendered dev pass, a ref mutated during render is already updated on
+  // the replay, so the guard skips and the co-queued setNodes/setEdges updates
+  // get dropped — leaving the canvas permanently empty. State keeps the update
+  // pair in React's queue so the replay re-applies them consistently.
+  const [lastModel, setLastModel] = useState(model);
+  if (lastModel !== model) {
+    setLastModel(model);
     setNodes(flow.nodes);
     setEdges(flow.edges);
   }
