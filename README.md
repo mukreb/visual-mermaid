@@ -65,6 +65,11 @@ npm run dev       # vite dev server (the UI in a plain browser)
 npm run build     # typecheck + production bundle
 ```
 
+New to the codebase? [`CLAUDE.md`](./CLAUDE.md) is the orientation guide — the
+dual-master sync model, the load-bearing constraints (the pinned mermaid version
+and its canary test), and what each module owns. [`PLAN.md`](./PLAN.md) has the
+deeper design rationale.
+
 ## Run as a macOS app (local)
 
 Tauri builds a native app against macOS's WKWebView, so this step needs a Mac
