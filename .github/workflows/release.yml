@@ -12,8 +12,9 @@ name: Release macOS app
 #   3. This workflow builds the .dmg and attaches it to a release named after
 #      the tag.
 #
-# You can also trigger it by hand from the Actions tab (workflow_dispatch),
-# supplying a tag to release.
+# You can also (re)build an EXISTING tag by hand from the Actions tab
+# (workflow_dispatch). To cut a brand-new release, push a v* tag (above) rather
+# than using manual dispatch.
 
 on:
   push:
@@ -22,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. v0.1.0). Created from the current commit if it does not exist."
+        description: "Existing tag to (re)build and release (e.g. v0.1.0). Push a new v* tag to cut a brand-new release."
         required: true
 
 # tauri-action needs to create the release and upload assets.
@@ -35,6 +36,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # On a tag push this is the tag itself; on manual dispatch, check out
+          # the requested tag so the built binaries match the release they're
+          # attached to (rather than whatever HEAD the dispatch ran from). The
+          # tag must already exist — push a v* tag to cut a brand-new release.
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -59,13 +66,17 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # --- Optional code signing + notarization ---
-          # The build works without any of these (the app is shipped unsigned,
-          # see the README for how users open an unsigned download). Set these
-          # as repository secrets to produce a signed, notarized .dmg.
+          # --- Code signing + notarization ---
+          # With no secrets set, the app is ad-hoc signed (APPLE_SIGNING_IDENTITY
+          # falls back to "-" below) but not notarized — see the README for how
+          # users open it past Gatekeeper. Set all of these as repository secrets
+          # to produce a Developer ID-signed, notarized .dmg.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Default to ad-hoc signing ("-") when no Developer ID is configured.
+          # Without it an unsigned download hard-fails as "app is damaged" on
+          # Apple Silicon instead of showing the right-click -> Open flow.
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

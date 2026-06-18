@@ -90,8 +90,9 @@ no Mac required on your end.
    ```
 
 3. The workflow builds the app and publishes a release named after the tag with the
-   `.dmg` attached. (You can also run it manually from the **Actions** tab and pass a
-   tag.)
+   `.dmg` attached. (You can also re-run a build for an **existing** tag from the
+   **Actions** tab — new releases should go through the tag push above so the
+   binaries match the tag.)
 
 The build is unsigned by default. To ship a signed + notarized `.dmg`, add your
 Apple Developer credentials as repository secrets (`APPLE_CERTIFICATE`,
