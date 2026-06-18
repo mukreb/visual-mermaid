@@ -62,24 +62,31 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Build and publish the macOS app
+      # Decide whether a real Developer ID certificate is available. We can't
+      # reference `secrets` directly in a step `if:`, so surface it as an output.
+      - name: Detect code-signing secrets
+        id: signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Default path: no signing secrets. Pass ONLY APPLE_SIGNING_IDENTITY=- so
+      # the app is ad-hoc signed. We must NOT define APPLE_CERTIFICATE here —
+      # tauri treats an empty-but-present value as "import this cert" and fails
+      # (`security import: ... parameters were not valid`).
+      - name: Build and publish the macOS app (ad-hoc signed)
+        if: steps.signing.outputs.enabled != 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # --- Code signing + notarization ---
-          # With no secrets set, the app is ad-hoc signed (APPLE_SIGNING_IDENTITY
-          # falls back to "-" below) but not notarized — see the README for how
-          # users open it past Gatekeeper. Set all of these as repository secrets
-          # to produce a Developer ID-signed, notarized .dmg.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          # Default to ad-hoc signing ("-") when no Developer ID is configured.
-          # Without it an unsigned download hard-fails as "app is damaged" on
-          # Apple Silicon instead of showing the right-click -> Open flow.
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Ad-hoc signing. Without it an unsigned download hard-fails as "app is
+          # damaged" on Apple Silicon instead of showing the right-click -> Open flow.
+          APPLE_SIGNING_IDENTITY: "-"
         with:
           tagName: ${{ github.event.inputs.tag || github.ref_name }}
           releaseName: "Visual Mermaid ${{ github.event.inputs.tag || github.ref_name }}"
@@ -91,6 +98,30 @@ jobs:
 
             - Right-click (or Control-click) the app and choose **Open**, then **Open** again, **or**
             - run `xattr -dr com.apple.quarantine "/Applications/Visual Mermaid.app"` in Terminal.
+          releaseDraft: false
+          prerelease: false
+          # Universal binary => one .dmg that runs on Apple Silicon and Intel Macs.
+          args: --target universal-apple-darwin
+
+      # Signed path: a Developer ID certificate (and, ideally, notarization
+      # credentials) are configured as repository secrets. Used automatically
+      # when APPLE_CERTIFICATE is set.
+      - name: Build and publish the macOS app (Developer ID signed + notarized)
+        if: steps.signing.outputs.enabled == 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: "Visual Mermaid ${{ github.event.inputs.tag || github.ref_name }}"
+          releaseBody: |
+            Download the `.dmg` below, open it, and drag **Visual Mermaid** to Applications.
           releaseDraft: false
           prerelease: false
           # Universal binary => one .dmg that runs on Apple Silicon and Intel Macs.
