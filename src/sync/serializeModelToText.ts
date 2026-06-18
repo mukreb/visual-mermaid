@@ -45,7 +45,9 @@ export function serializeModelToText(model: GraphModel): string {
 
   // Subgraphs, each declaring its member nodes (so mermaid assigns them correctly).
   for (const sg of model.subgraphs) {
-    const title = sg.title ? ` [${sg.title}]` : "";
+    // Quote the title (like node labels) so punctuation in it — e.g. "(Supabase)"
+    // — doesn't break the bracket when the text is re-parsed.
+    const title = sg.title ? `["${escapeLabel(sg.title)}"]` : "";
     lines.push(`${INDENT}subgraph ${sg.id}${title}`);
     if (sg.direction) lines.push(`${INDENT}${INDENT}direction ${sg.direction}`);
     for (const id of sg.nodeIds) {

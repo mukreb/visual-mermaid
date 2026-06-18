@@ -1,0 +1,95 @@
+flowchart TB
+  %% Toekomstige architectuur opreis.nl
+  %% Vervalt t.o.v. nu: Moneybird (-> Exact), de gedeelde Gmail-inbox (-> Trengo),
+  %% en de handmatige Payhawk-treinboeking (-> geautomatiseerd via nieuwe treinstack).
+  %% Render: mermaid.live, VS Code Mermaid-extensie, GitHub of Markchart.
+
+  customers(["Klanten"])
+
+  %% ---------- Website ----------
+  subgraph present["Website"]
+    web["Frontend"]
+    agent["AI-agentlaag<br/>reisadvies + vragen"]
+  end
+
+  %% ---------- Content ----------
+  subgraph content["Content"]
+    cms["Headless CMS<br/>beschrijvingen, fotos"]
+  end
+
+  %% ---------- Railbase: single source of truth ----------
+  subgraph core["Railbase - single source of truth (Supabase)"]
+    product["Product engine<br/>reizen 1:1 met website"]
+    pricing["pricing_output<br/>gekozen prijs per datum"]
+    orders["Orders, boekingen en klanten"]
+  end
+
+  %% ---------- Prijs retrieval, scraping en bronselectie ----------
+  subgraph ingest["Prijs retrieval, scraping en bronselectie"]
+    rh["RateHawk<br/>hotelprijzen + hotelboeking"]
+    bk["Booking<br/>(toekomst)"]
+    direct["Direct hotels<br/>(toekomst)"]
+    bestprice{"Beste-prijs-selectie<br/>prijs, refundable, beschikbaarheid"}
+    trains["Treinen - nieuwe stack<br/>prijzen + boeken"]
+  end
+
+  %% ---------- Integratielaag ----------
+  subgraph integ["Integratielaag - event-driven"]
+    sync["Sync / workflows<br/>Trigger.dev of n8n (self-host)"]
+  end
+
+  %% ---------- Externe systemen ----------
+  subgraph ext["Externe systemen"]
+    brevo["Brevo<br/>marketing / CRM-light"]
+    trengo["Trengo<br/>inbound: WhatsApp, voice, e-mail, chat"]
+    exact["Exact<br/>financiele system of record"]
+    stripe["Stripe<br/>alleen betaling"]
+  end
+
+  %% ---------- Operations ----------
+  subgraph ops["Operations"]
+    railhub["Railhub<br/>interne operatietool<br/>boekingsafhandeling (half automatisch, half handmatig)"]
+    rag["Kennisbank / embeddings (RAG)<br/>bron: Notion"]
+  end
+  style ops fill:#FEF3C7,stroke:#F59E0B,color:#1F2937
+
+  calendly["Calendly<br/>afspraken (toekomst t.b.d.)"]
+
+  %% ---------- Flows: klant en presentatie ----------
+  customers --> web
+  customers --> trengo
+  calendly --> sync
+  web --- agent
+  agent --> product
+  agent --> rag
+  web -->|product_id| cms
+  cms -.->|product_id| product
+  product -->|reizen ophalen| web
+  pricing -->|prijzen ophalen| web
+
+  %% ---------- Flows: boeking-uitvoering (via Railhub) ----------
+  web -->|boeking| railhub
+  railhub --> orders
+  railhub -->|hotel boeken| rh
+  railhub -->|trein boeken| trains
+  web -->|betaling| stripe
+
+  %% ---------- Flows: prijzen ----------
+  rh --> bestprice
+  bk --> bestprice
+  direct --> bestprice
+  bestprice --> pricing
+  trains --> pricing
+  product --> pricing
+
+  %% ---------- Flows: integratie en externe systemen ----------
+  orders --> sync
+  product --> sync
+  stripe -->|webhook| sync
+  sync <--> brevo
+  sync <--> trengo
+  sync -->|idempotente ref| exact
+
+  %% ---------- Flows: operatie ----------
+  sync --- railhub
+  rag --- trengo

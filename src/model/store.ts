@@ -37,6 +37,12 @@ export interface EditorState {
   /** Last successful parse diagnostic, or null. */
   error: string | null;
   lastEditedBy: EditSource;
+  /**
+   * Bumped each time a whole new document is loaded (open/new/initial). The
+   * canvas watches this to refit the view — incremental edits don't bump it, so
+   * typing in the code view never makes the canvas jump.
+   */
+  docVersion: number;
 
   past: GraphModel[];
   future: GraphModel[];
@@ -70,6 +76,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   savedText: "",
   error: null,
   lastEditedBy: null,
+  docVersion: 0,
   past: [],
   future: [],
 
@@ -137,8 +144,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
     await get().parseNow();
     // parseNow records history for the parse; reset it — a fresh document
-    // starts with a clean undo stack.
-    set({ past: [], future: [] });
+    // starts with a clean undo stack. Bump docVersion only *after* the parsed
+    // model is installed: bumping it before the await would let the canvas
+    // remount and fit the previous (still-current) model mid-parse, leaving the
+    // newly opened graph unframed.
+    set({ past: [], future: [], docVersion: get().docVersion + 1 });
   },
 
   undo: () => {

@@ -4,6 +4,7 @@
 // part of the model, so they never affect serialization.
 
 import type { Edge, Node } from "@xyflow/react";
+import { estimateNodeSize } from "../model/nodeSize";
 import type { EdgeKind, GraphModel, NodeShape } from "../model/types";
 
 export interface ShapeNodeData extends Record<string, unknown> {
@@ -24,9 +25,8 @@ export type GroupNode = Node<GroupNodeData, "group">;
 export type AppNode = ShapeNode | GroupNode;
 export type FlowEdge = Edge<FlowEdgeData>;
 
-// Approximate node footprint + padding used to size subgraph containers.
-const NODE_W = 170;
-const NODE_H = 56;
+// Padding/title strip used to size subgraph containers around their members.
+// Member footprints come from estimateNodeSize() so the box hugs the real nodes.
 const PAD = 26;
 const TITLE_H = 22;
 
@@ -44,12 +44,14 @@ export function modelToFlow(model: GraphModel): {
       .filter((n): n is NonNullable<typeof n> => !!n?.position);
     if (members.length === 0) continue;
 
-    const xs = members.map((n) => n.position!.x);
-    const ys = members.map((n) => n.position!.y);
-    const minX = Math.min(...xs);
-    const minY = Math.min(...ys);
-    const maxX = Math.max(...xs) + NODE_W;
-    const maxY = Math.max(...ys) + NODE_H;
+    const minX = Math.min(...members.map((n) => n.position!.x));
+    const minY = Math.min(...members.map((n) => n.position!.y));
+    const maxX = Math.max(
+      ...members.map((n) => n.position!.x + estimateNodeSize(n.label).width),
+    );
+    const maxY = Math.max(
+      ...members.map((n) => n.position!.y + estimateNodeSize(n.label).height),
+    );
 
     groups.push({
       id: `__sg_${sg.id}`,

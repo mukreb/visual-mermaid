@@ -17,7 +17,7 @@ import {
   type NodeChange,
 } from "@xyflow/react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   connect,
   moveNode,
@@ -64,6 +64,9 @@ const EDGE_OPTIONS: [EdgeKind, string][] = [
 export function VisualView() {
   const model = useEditorStore((s) => s.model);
   const mutate = useEditorStore((s) => s.mutate);
+  // Remount React Flow when a whole new document loads so `fitView` re-runs and
+  // frames the freshly loaded graph (the prop only auto-fits on mount).
+  const docVersion = useEditorStore((s) => s.docVersion);
 
   const flow = useMemo(() => modelToFlow(model), [model]);
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>(flow.nodes);
@@ -71,12 +74,16 @@ export function VisualView() {
   const [selNodeId, setSelNodeId] = useState<string | null>(null);
   const [selEdgeId, setSelEdgeId] = useState<string | null>(null);
 
-  // Resync local React Flow state when the model changes from the code side.
-  useEffect(() => {
-    const { nodes: n, edges: e } = modelToFlow(model);
-    setNodes(n);
-    setEdges(e);
-  }, [model, setNodes, setEdges]);
+  // Resync canvas state from the model *during render* (not in an effect) so the
+  // fresh nodes are in place the moment React Flow (re)mounts. That lets the
+  // built-in `fitView` prop frame the new graph after measurement on a load —
+  // an effect would run a frame too late and remount with the previous graph.
+  const lastModel = useRef(model);
+  if (lastModel.current !== model) {
+    lastModel.current = model;
+    setNodes(flow.nodes);
+    setEdges(flow.edges);
+  }
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<AppNode>[]) => {
@@ -137,10 +144,13 @@ export function VisualView() {
   return (
     <div className="pane visual-pane">
       <ReactFlow
+        key={docVersion}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         colorMode="system"
+        minZoom={0.1}
+        fitViewOptions={{ padding: 0.15, minZoom: 0.1 }}
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}

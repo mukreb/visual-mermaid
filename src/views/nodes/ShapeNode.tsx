@@ -3,9 +3,20 @@
 // pane is the high-fidelity render; this is the editable surface.
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import type { CSSProperties } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import type { ShapeNode as ShapeNodeType } from "../../flow/modelToFlow";
 import type { NodeShape } from "../../model/types";
+
+/** Mermaid labels use <br>/<br/> for line breaks; render them as real breaks. */
+function renderLabel(label: string): ReactNode {
+  const lines = label.split(/<br\s*\/?>/i);
+  return lines.map((line, i) => (
+    <Fragment key={i}>
+      {i > 0 && <br />}
+      {line}
+    </Fragment>
+  ));
+}
 
 const SHAPE_STYLE: Record<NodeShape, CSSProperties> = {
   rect: { borderRadius: 4 },
@@ -32,7 +43,7 @@ export function ShapeNode({ data, selected }: NodeProps<ShapeNodeType>) {
       title={`shape: ${shape}`}
     >
       <Handle type="target" position={Position.Top} />
-      <span className="shape-node-label">{data.label}</span>
+      <span className="shape-node-label">{renderLabel(data.label)}</span>
       <Handle type="source" position={Position.Bottom} />
       <Handle type="target" position={Position.Left} id="l" />
       <Handle type="source" position={Position.Right} id="r" />
