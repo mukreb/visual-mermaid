@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    participant A
+    participant B
+    participant C
+    par to B
+        A->>B: hello
+    and to C
+        A->>C: hello
+    end
+    critical connect
+        A->>B: connect
+    option timeout
+        A->>B: retry
+    end
+    break broken
+        A->>B: stop
+    end

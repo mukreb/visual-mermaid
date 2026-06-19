@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant A
+    participant B
+    loop every minute
+        A->>B: ping
+        B-->>A: pong
+    end
+    alt is ok
+        A->>B: yes
+    else not ok
+        A->>B: no
+    end
+    opt maybe
+        A->>B: optional
+    end
