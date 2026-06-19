@@ -184,9 +184,21 @@ on the canvas → valid text updates; round-trip tests green; comments preserved
 Shapes palette, edge styles, subgraphs, `direction` toggle, undo/redo (Zustand history),
 error diagnostics in the gutter, position persistence, theming, export SVG/PNG.
 
-### Phase 3 — More diagram types (later)
-A `DiagramAdapter` interface (`parse`, `serialize`, `toFlow`, `fromFlow`) so each type is a
-pluggable module. Order: **sequence** → state → class → ER.
+### Phase 3 — More diagram types (in progress)
+A `DiagramAdapter` interface (`matches`, `empty`, `parse`, `serialize`, `reconcile`, `toFlow`) so
+each type is a pluggable module (`src/diagram/`: `adapter.ts`, `registry.ts`, per-type modules).
+Order: **sequence** → state → class → ER.
+
+**Done:**
+- ✅ `DiagramAdapter` seam + registry (text→adapter by header, model→adapter by `kind`); the
+  flowchart pipeline refactored to implement it (`flowchartAdapter`). Store is adapter-driven.
+- ✅ **Sequence** module: model (participants/actors, message arrow styles, notes,
+  loop/opt/alt/par/critical/break blocks), parse via the mermaid sequence db (isolated +
+  canary-pinned `LINETYPE` enum), deterministic emitter, round-trip tests. Wired into the editor:
+  the code view + live Preview are fully two-way; the visual canvas shows a **read-only** lifeline/
+  message projection (sequence editing is code-view only for now).
+
+**Next:** sequence visual *editing* (drag participants, add messages) → then **state** diagrams.
 
 ### Phase 4 — Distribution (later, if wanted)
 Code-signing + notarization in `tauri.conf.json`, DMG, auto-update, `.mmd` file association.
