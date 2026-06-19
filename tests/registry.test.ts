@@ -14,9 +14,24 @@ describe("diagram registry", () => {
     expect(detectKind("---\ntitle: Hi\n---\nflowchart TD\n  A --> B")).toBe("flowchart");
   });
 
+  it("detects sequence diagrams by their header keyword", () => {
+    expect(detectKind("sequenceDiagram\n  A->>B: hi")).toBe("sequence");
+    expect(detectKind("%% note\nsequenceDiagram\n  A->>B: hi")).toBe("sequence");
+  });
+
   it("falls back to the flowchart adapter for empty/unknown text", () => {
     expect(detectKind("")).toBe("flowchart");
     expect(adapterForText("not a diagram").kind).toBe("flowchart");
+  });
+
+  it("round-trips a sequence diagram through the adapter interface", async () => {
+    const src = "sequenceDiagram\n  participant A\n  participant B\n  A->>B: hi";
+    const adapter = adapterForText(src);
+    expect(adapter.kind).toBe("sequence");
+    const m1 = await adapter.parse(src);
+    const m2 = await adapter.parse(adapter.serialize(m1));
+    expect(adapterForModel(m2).kind).toBe("sequence");
+    expect(adapter.serialize(m2)).toBe(adapter.serialize(m1));
   });
 
   it("dispatches a model to its owning adapter by kind", () => {

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useEditorStore } from "../src/model/store";
 import { addNode } from "../src/flow/flowToModel";
 import { emptyModel } from "../src/model/types";
+import { asFlow } from "./helpers";
 
 const store = useEditorStore;
 
@@ -18,22 +19,22 @@ describe("editor store", () => {
     const { model, error, lastEditedBy } = store.getState();
     expect(error).toBeNull();
     expect(lastEditedBy).toBe("code");
-    expect(model.nodes.map((n) => n.id).sort()).toEqual(["A", "B"]);
-    expect(model.edges).toHaveLength(1);
+    expect(asFlow(model).nodes.map((n) => n.id).sort()).toEqual(["A", "B"]);
+    expect(asFlow(model).edges).toHaveLength(1);
   });
 
   it("visual path: mutate re-emits text and marks source visual", async () => {
     await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
-    store.getState().mutate((m) => addNode(m, { label: "Extra" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "Extra" }));
     const { model, text, lastEditedBy } = store.getState();
     expect(lastEditedBy).toBe("visual");
-    expect(model.nodes).toHaveLength(3);
+    expect(asFlow(model).nodes).toHaveLength(3);
     expect(text).toContain('"Extra"');
   });
 
   it("loop guard: parseNow is a no-op on text we just emitted from a visual edit", async () => {
     await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
-    store.getState().mutate((m) => addNode(m, { label: "Extra" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "Extra" }));
     const before = store.getState().model;
 
     await store.getState().parseNow(); // must not re-parse our own emitted text
@@ -54,13 +55,13 @@ describe("editor store", () => {
 
     // The stale result for the old text must not have been committed.
     expect(store.getState().model).toBe(sample);
-    expect(store.getState().model.nodes.map((n) => n.id).sort()).toEqual(["A", "B"]);
+    expect(asFlow(store.getState().model).nodes.map((n) => n.id).sort()).toEqual(["A", "B"]);
   });
 
   it("toolbar-added nodes get a position (no stacking, emits @pos)", async () => {
     await store.getState().loadText("flowchart TD\n  A[Start] --> B[End]\n");
-    store.getState().mutate((m) => addNode(m, { label: "Extra" }));
-    const added = store.getState().model.nodes.find((n) => n.label === "Extra");
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "Extra" }));
+    const added = asFlow(store.getState().model).nodes.find((n) => n.label === "Extra");
     expect(added?.position).toBeDefined();
     expect(store.getState().text).toContain("%% @pos");
   });
@@ -83,7 +84,7 @@ describe("editor store", () => {
 
     expect(violations).toEqual([]);
     expect(store.getState().docVersion).toBe(startVersion + 1);
-    expect(store.getState().model.nodes.map((n) => n.id).sort()).toEqual(["X", "Y"]);
+    expect(asFlow(store.getState().model).nodes.map((n) => n.id).sort()).toEqual(["X", "Y"]);
   });
 
   it("keeps the last good model on a parse error", async () => {

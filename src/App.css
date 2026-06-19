@@ -254,6 +254,16 @@ body,
   font-size: 12px;
 }
 
+.seq-hint {
+  padding: 6px 10px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+  opacity: 0.8;
+}
+
 .inspector-title {
   font-weight: 600;
   margin-bottom: 8px;

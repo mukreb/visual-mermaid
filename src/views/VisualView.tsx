@@ -32,14 +32,28 @@ import {
   setNodeShape,
 } from "../flow/flowToModel";
 import { isGroupId, modelToFlow, type AppNode, type FlowEdge } from "../flow/modelToFlow";
+import { sequenceToFlow } from "../diagram/sequence/flow";
+import type { SequenceModel } from "../diagram/sequence/model";
 import { useEditorStore } from "../model/store";
-import type { EdgeKind, GEdge, GNode, NodeShape } from "../model/types";
+import type { EdgeKind, GEdge, GNode, GraphModel, NodeShape } from "../model/types";
 import { GroupNode } from "./nodes/GroupNode";
 import { ShapeNode } from "./nodes/ShapeNode";
 import { ShapePalette, SHAPE_DND_MIME } from "./ShapePalette";
 import { EDGE_OPTIONS, SHAPE_OPTIONS } from "./shapeOptions";
 
 const nodeTypes = { shape: ShapeNode, group: GroupNode };
+
+// Flowchart editing helpers expect a GraphModel; the store's mutate takes the
+// diagram-model union. This narrows it so the flowchart canvas + inspectors can
+// keep calling the pure GraphModel helpers (a no-op if the model isn't a flowchart).
+function useGraphMutate() {
+  const mutate = useEditorStore((s) => s.mutate);
+  return useCallback(
+    (fn: (m: GraphModel) => GraphModel) =>
+      mutate((m) => (m.kind === "flowchart" ? fn(m) : m)),
+    [mutate],
+  );
+}
 
 // React Flow's screenToFlowPosition (used for drop placement) needs the provider
 // context, so the canvas lives in an inner component wrapped below.
@@ -51,9 +65,16 @@ export function VisualView() {
   );
 }
 
+// Pick the canvas for the active diagram type. Flowchart is fully editable;
+// other types fall back to a read-only projection (edit them in the code view).
 function VisualCanvas() {
   const model = useEditorStore((s) => s.model);
-  const mutate = useEditorStore((s) => s.mutate);
+  if (model.kind === "flowchart") return <FlowchartCanvas model={model} />;
+  return <SequenceCanvas model={model} />;
+}
+
+function FlowchartCanvas({ model }: { model: GraphModel }) {
+  const mutate = useGraphMutate();
   // Remount React Flow when a whole new document loads so `fitView` re-runs and
   // frames the freshly loaded graph (the prop only auto-fits on mount).
   const docVersion = useEditorStore((s) => s.docVersion);
@@ -201,8 +222,40 @@ function VisualCanvas() {
   );
 }
 
+// Read-only overview for sequence diagrams: lifelines in a row, messages as
+// numbered edges (projected by sequenceToFlow). Sequence editing is done in the
+// code view; the faithful render is the Preview pane.
+function SequenceCanvas({ model }: { model: SequenceModel }) {
+  const docVersion = useEditorStore((s) => s.docVersion);
+  const flow = useMemo(() => sequenceToFlow(model), [model]);
+
+  return (
+    <div className="pane visual-pane">
+      <ReactFlow
+        key={docVersion}
+        nodes={flow.nodes}
+        edges={flow.edges}
+        nodeTypes={nodeTypes}
+        colorMode="system"
+        minZoom={0.1}
+        fitViewOptions={{ padding: 0.2, minZoom: 0.1 }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        fitView
+      >
+        <Background />
+        <Controls showInteractive={false} />
+        <Panel position="top-left">
+          <div className="seq-hint">Sequence diagram — edit in the code view</div>
+        </Panel>
+      </ReactFlow>
+    </div>
+  );
+}
+
 function NodeInspector({ node }: { node: GNode }) {
-  const mutate = useEditorStore((s) => s.mutate);
+  const mutate = useGraphMutate();
   const [label, setLabel] = useState(node.label);
   useEffect(() => setLabel(node.label), [node.id, node.label]);
 
@@ -243,7 +296,7 @@ function NodeInspector({ node }: { node: GNode }) {
 }
 
 function EdgeInspector({ edge }: { edge: GEdge }) {
-  const mutate = useEditorStore((s) => s.mutate);
+  const mutate = useGraphMutate();
   const [label, setLabel] = useState(edge.label ?? "");
   useEffect(() => setLabel(edge.label ?? ""), [edge.id, edge.label]);
 

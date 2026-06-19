@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { addNode } from "../src/flow/flowToModel";
 import { useEditorStore } from "../src/model/store";
 import { emptyModel } from "../src/model/types";
+import { asFlow } from "./helpers";
 
 const store = useEditorStore;
 const SAMPLE = "flowchart TD\n  A[Start] --> B[End]\n";
@@ -28,32 +29,32 @@ describe("undo/redo + dirty tracking", () => {
 
   it("undo and redo step through model snapshots", async () => {
     await store.getState().loadText(SAMPLE);
-    store.getState().mutate((m) => addNode(m, { label: "X" }));
-    store.getState().mutate((m) => addNode(m, { label: "Y" }));
-    expect(store.getState().model.nodes).toHaveLength(4);
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "X" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "Y" }));
+    expect(asFlow(store.getState().model).nodes).toHaveLength(4);
 
     store.getState().undo();
-    expect(store.getState().model.nodes).toHaveLength(3);
+    expect(asFlow(store.getState().model).nodes).toHaveLength(3);
     store.getState().undo();
-    expect(store.getState().model.nodes).toHaveLength(2);
+    expect(asFlow(store.getState().model).nodes).toHaveLength(2);
 
     store.getState().redo();
-    expect(store.getState().model.nodes).toHaveLength(3);
+    expect(asFlow(store.getState().model).nodes).toHaveLength(3);
   });
 
   it("a new edit clears the redo stack", async () => {
     await store.getState().loadText(SAMPLE);
-    store.getState().mutate((m) => addNode(m, { label: "X" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "X" }));
     store.getState().undo();
     expect(store.getState().future).toHaveLength(1);
-    store.getState().mutate((m) => addNode(m, { label: "Z" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "Z" }));
     expect(store.getState().future).toHaveLength(0);
   });
 
   it("marking a stale snapshot as saved keeps newer edits dirty", async () => {
     await store.getState().loadText(SAMPLE);
     const snapshot = store.getState().text; // what a save would have written
-    store.getState().mutate((m) => addNode(m, { label: "X" })); // edit mid-save
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "X" })); // edit mid-save
     store.getState().markSaved(snapshot); // baseline = the OLD written snapshot
     expect(store.getState().text !== store.getState().savedText).toBe(true);
   });
@@ -62,7 +63,7 @@ describe("undo/redo + dirty tracking", () => {
     await store.getState().loadText(SAMPLE);
     const dirty = () => store.getState().text !== store.getState().savedText;
     expect(dirty()).toBe(false);
-    store.getState().mutate((m) => addNode(m, { label: "X" }));
+    store.getState().mutate((m) => addNode(asFlow(m), { label: "X" }));
     expect(dirty()).toBe(true);
     store.getState().markSaved();
     expect(dirty()).toBe(false);

@@ -48,7 +48,9 @@ const DIRECTIONS: Direction[] = ["TB", "LR", "BT", "RL"];
 export default function App() {
   const text = useEditorStore((s) => s.text);
   const savedText = useEditorStore((s) => s.savedText);
-  const direction = useEditorStore((s) => s.model.direction);
+  const kind = useEditorStore((s) => s.model.kind);
+  // Direction is a flowchart-only concept; null for other diagram types.
+  const direction = useEditorStore((s) => (s.model.kind === "flowchart" ? s.model.direction : null));
   const error = useEditorStore((s) => s.error);
   const canUndo = useEditorStore((s) => s.past.length > 0);
   const canRedo = useEditorStore((s) => s.future.length > 0);
@@ -155,9 +157,10 @@ export default function App() {
   const togglePreview = () => setShowPreview((v) => !v);
 
   const cycleDirection = () => {
+    if (!direction) return;
     const i = DIRECTIONS.indexOf(direction);
     const next = DIRECTIONS[(i + 1) % DIRECTIONS.length];
-    mutate((m) => ({ ...m, direction: next }));
+    mutate((m) => (m.kind === "flowchart" ? { ...m, direction: next } : m));
   };
 
   // Keep the latest handlers reachable from the once-installed menu / key listener.
@@ -240,19 +243,23 @@ export default function App() {
             <span>Save</span>
           </button>
           <ExportMenu onSvg={onExportSvg} onPng={onExportPng} />
-          <span className="tsep" />
-          <button
-            className="tbtn"
-            onClick={() => mutate((m) => addNode(m, { label: "New" }))}
-            title="Add node"
-          >
-            <PlusIcon />
-            <span>Node</span>
-          </button>
-          <button className="tbtn" onClick={cycleDirection} title="Cycle layout direction">
-            <DirectionIcon />
-            <span>{direction}</span>
-          </button>
+          {kind === "flowchart" && (
+            <>
+              <span className="tsep" />
+              <button
+                className="tbtn"
+                onClick={() => mutate((m) => (m.kind === "flowchart" ? addNode(m, { label: "New" }) : m))}
+                title="Add node"
+              >
+                <PlusIcon />
+                <span>Node</span>
+              </button>
+              <button className="tbtn" onClick={cycleDirection} title="Cycle layout direction">
+                <DirectionIcon />
+                <span>{direction}</span>
+              </button>
+            </>
+          )}
           <span className="tsep" />
           <button className="tbtn" onClick={() => useEditorStore.getState().undo()} disabled={!canUndo} title="Undo (⌘Z)">
             <UndoIcon />

@@ -7,6 +7,7 @@ import mermaid from "mermaid";
 import { describe, expect, it } from "vitest";
 import { parseSequenceToModel } from "../src/diagram/sequence/parse";
 import { serializeSequenceToText } from "../src/diagram/sequence/serialize";
+import { sequenceToFlow } from "../src/diagram/sequence/flow";
 import type { SequenceModel } from "../src/diagram/sequence/model";
 
 const fixturesDir = join(process.cwd(), "tests", "fixtures", "sequence");
@@ -54,6 +55,32 @@ describe("sequence serializer", () => {
     );
     const out = serializeSequenceToText(m);
     expect(out).toMatch(/alt ok[\s\S]*else no[\s\S]*end/);
+  });
+});
+
+describe("sequence → flow projection (read-only canvas)", () => {
+  it("maps participants to a row of nodes and messages to numbered edges", async () => {
+    const m = await parseSequenceToModel(
+      "sequenceDiagram\n  participant A\n  actor B\n  A->>B: hi\n  B-->>A: yo",
+    );
+    const { nodes, edges } = sequenceToFlow(m);
+
+    expect(nodes.map((n) => n.id)).toEqual(["A", "B"]);
+    // Laid out in a horizontal row (distinct x, shared y).
+    expect(nodes[0].position.y).toBe(nodes[1].position.y);
+    expect(nodes[0].position.x).not.toBe(nodes[1].position.x);
+
+    expect(edges).toHaveLength(2);
+    expect(edges[0]).toMatchObject({ source: "A", target: "B", label: "1. hi" });
+    expect(edges[1]).toMatchObject({ source: "B", target: "A", label: "2. yo" });
+  });
+
+  it("flattens messages nested inside blocks, preserving order", async () => {
+    const m = await parseSequenceToModel(
+      "sequenceDiagram\n  participant A\n  participant B\n  A->>B: one\n  alt x\n    A->>B: two\n  else y\n    A->>B: three\n  end",
+    );
+    const { edges } = sequenceToFlow(m);
+    expect(edges.map((e) => e.label)).toEqual(["1. one", "2. two", "3. three"]);
   });
 });
 

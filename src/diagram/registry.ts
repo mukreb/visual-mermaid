@@ -4,11 +4,12 @@
 
 import type { BaseModel, DiagramAdapter, DiagramKind } from "./adapter";
 import { flowchartAdapter } from "./flowchart";
+import { sequenceAdapter } from "./sequence";
 
 // Order matters only for matches(): the first adapter whose matches() returns
 // true wins. flowchart is the fallback (its matches is also the loosest), so it
 // stays last and also serves as the default for unrecognized text.
-const ADAPTERS: DiagramAdapter[] = [flowchartAdapter];
+const ADAPTERS: DiagramAdapter[] = [sequenceAdapter, flowchartAdapter];
 
 /** The fallback adapter for empty/unrecognized documents. */
 export const defaultAdapter: DiagramAdapter = flowchartAdapter;

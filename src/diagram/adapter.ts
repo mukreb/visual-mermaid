@@ -9,8 +9,9 @@
 
 import type { AppNode, FlowEdge } from "../flow/modelToFlow";
 import type { GraphModel } from "../model/types";
+import type { SequenceModel } from "./sequence/model";
 
-export type DiagramKind = GraphModel["kind"] | "sequence";
+export type DiagramKind = GraphModel["kind"] | SequenceModel["kind"];
 
 /** Marker every concrete diagram model carries, for union dispatch. */
 export interface BaseModel {
@@ -19,9 +20,9 @@ export interface BaseModel {
 
 /**
  * The resting-state model the store holds — the discriminated union of every
- * concrete diagram model. Widened (with `| SequenceModel`, …) as types are added.
+ * concrete diagram model. Widened as diagram types are added.
  */
-export type DiagramModel = GraphModel;
+export type DiagramModel = GraphModel | SequenceModel;
 
 export interface DiagramAdapter<M extends BaseModel = DiagramModel> {
   readonly kind: DiagramKind;

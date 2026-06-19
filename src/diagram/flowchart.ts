@@ -9,26 +9,11 @@ import { layoutNewNodes } from "../sync/layout";
 import { parseTextToModel } from "../sync/parseTextToModel";
 import { serializeModelToText } from "../sync/serializeModelToText";
 import type { DiagramAdapter } from "./adapter";
+import { firstKeywordLine } from "./header";
 
 // `flowchart`/`graph` is the legacy default; treat anything not claimed by a more
 // specific adapter as a flowchart (the registry uses flowchart as its fallback).
 const HEADER = /^(?:flowchart|graph)\b/;
-
-/** First line of actual diagram source, skipping frontmatter, directives, comments. */
-function firstKeywordLine(text: string): string {
-  let inFrontmatter = false;
-  for (const raw of text.split("\n")) {
-    const line = raw.trim();
-    if (line === "---") {
-      inFrontmatter = !inFrontmatter;
-      continue;
-    }
-    if (inFrontmatter) continue;
-    if (line === "" || line.startsWith("%%")) continue;
-    return line;
-  }
-  return "";
-}
 
 export function isFlowchart(text: string): boolean {
   return HEADER.test(firstKeywordLine(text));
