@@ -13,23 +13,26 @@
 // Dirty tracking compares the current text to the last saved/opened baseline.
 
 import { create } from "zustand";
-import { layoutNewNodes } from "../sync/layout";
-import { MermaidParseError, parseTextToModel } from "../sync/parseTextToModel";
-import { serializeModelToText } from "../sync/serializeModelToText";
-import type { GraphModel } from "./types";
-import { emptyModel } from "./types";
+import type { DiagramModel } from "../diagram/adapter";
+import { adapterForModel, adapterForText, defaultAdapter } from "../diagram/registry";
+import { MermaidParseError } from "../sync/parseTextToModel";
 
 export type EditSource = "code" | "visual" | null;
 
 const HISTORY_LIMIT = 100;
 
-function pushCapped(stack: GraphModel[], model: GraphModel): GraphModel[] {
+function pushCapped(stack: DiagramModel[], model: DiagramModel): DiagramModel[] {
   const next = [...stack, model];
   return next.length > HISTORY_LIMIT ? next.slice(next.length - HISTORY_LIMIT) : next;
 }
 
+/** Serialize through whichever adapter owns the model. */
+function emit(model: DiagramModel): string {
+  return adapterForModel(model).serialize(model);
+}
+
 export interface EditorState {
-  model: GraphModel;
+  model: DiagramModel;
   /** Current code-view text (source of truth while the user types in code). */
   text: string;
   /** Baseline for dirty tracking — set on open/save. */
@@ -44,8 +47,8 @@ export interface EditorState {
    */
   docVersion: number;
 
-  past: GraphModel[];
-  future: GraphModel[];
+  past: DiagramModel[];
+  future: DiagramModel[];
 
   /** User typed in the code view. Does not parse — the view debounces parseNow(). */
   setText: (text: string) => void;
@@ -54,7 +57,7 @@ export interface EditorState {
   parseNow: () => Promise<void>;
 
   /** Apply a visual edit: mutate the model and re-emit the text (reformatted). */
-  mutate: (fn: (model: GraphModel) => GraphModel) => void;
+  mutate: (fn: (model: DiagramModel) => DiagramModel) => void;
 
   /** Replace the whole document (e.g. on file open). Resets history + dirty. */
   loadText: (text: string) => Promise<void>;
@@ -71,7 +74,7 @@ export interface EditorState {
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
-  model: emptyModel(),
+  model: defaultAdapter.empty(),
   text: "",
   savedText: "",
   error: null,
@@ -86,11 +89,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { text, model: prev } = get();
 
     // Loop guard: this exact text is what we last emitted — nothing to parse.
-    if (text === serializeModelToText(prev)) return;
+    if (text === emit(prev)) return;
 
-    let parsed: GraphModel;
+    const adapter = adapterForText(text);
+
+    let parsed: DiagramModel;
     try {
-      parsed = await parseTextToModel(text);
+      parsed = await adapter.parse(text);
     } catch (err) {
       set({ error: err instanceof MermaidParseError ? err.message : String(err) });
       return; // keep last good model + canvas untouched
@@ -99,20 +104,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Stale-parse guard: bail if the text changed while we awaited the parse.
     if (get().text !== text) return;
 
-    // Preserve on-canvas positions for nodes that already existed, so typing in
-    // the code view doesn't make the canvas jump. Only genuinely new nodes layout.
-    const prevPos = new Map(
-      prev.nodes.filter((n) => n.position).map((n) => [n.id, n.position!]),
-    );
-    const merged: GraphModel = {
-      ...parsed,
-      nodes: parsed.nodes.map((n) =>
-        n.position ? n : prevPos.has(n.id) ? { ...n, position: prevPos.get(n.id) } : n,
-      ),
-    };
+    // Reconcile preserves per-id layout for things that already existed (so
+    // typing in the code view doesn't make the canvas jump) and lays out only
+    // new elements. If the diagram *type* changed, there's nothing to preserve —
+    // hand the adapter an empty model of its own kind as the baseline.
+    const baseline = prev.kind === adapter.kind ? prev : adapter.empty();
 
     set({
-      model: layoutNewNodes(merged),
+      model: adapter.reconcile(parsed, baseline),
       error: null,
       lastEditedBy: "code",
       past: pushCapped(get().past, prev),
@@ -125,7 +124,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const next = fn(prev);
     set({
       model: next,
-      text: serializeModelToText(next),
+      text: emit(next),
       error: null,
       lastEditedBy: "visual",
       past: pushCapped(get().past, prev),
@@ -157,7 +156,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const prev = past[past.length - 1];
     set({
       model: prev,
-      text: serializeModelToText(prev),
+      text: emit(prev),
       lastEditedBy: "visual",
       error: null,
       past: past.slice(0, -1),
@@ -171,7 +170,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const next = future[0];
     set({
       model: next,
-      text: serializeModelToText(next),
+      text: emit(next),
       lastEditedBy: "visual",
       error: null,
       past: [...past, model],

@@ -1,0 +1,33 @@
+// The diagram-adapter seam: detection (text → adapter), model dispatch
+// (kind → adapter), and that the flowchart adapter still round-trips through
+// the generic interface exactly as the underlying pipeline does.
+
+import { describe, expect, it } from "vitest";
+import { adapterForModel, adapterForText, detectKind } from "../src/diagram/registry";
+import { normalize } from "./helpers";
+
+describe("diagram registry", () => {
+  it("detects flowchart from its header keywords (skipping frontmatter/comments)", () => {
+    expect(detectKind("flowchart TD\n  A --> B")).toBe("flowchart");
+    expect(detectKind("graph LR\n  A --> B")).toBe("flowchart");
+    expect(detectKind("%% a comment\nflowchart TD\n  A --> B")).toBe("flowchart");
+    expect(detectKind("---\ntitle: Hi\n---\nflowchart TD\n  A --> B")).toBe("flowchart");
+  });
+
+  it("falls back to the flowchart adapter for empty/unknown text", () => {
+    expect(detectKind("")).toBe("flowchart");
+    expect(adapterForText("not a diagram").kind).toBe("flowchart");
+  });
+
+  it("dispatches a model to its owning adapter by kind", () => {
+    const empty = adapterForText("flowchart TD").empty();
+    expect(adapterForModel(empty).kind).toBe("flowchart");
+  });
+
+  it("round-trips a flowchart through the adapter interface", async () => {
+    const adapter = adapterForText("flowchart TD\n  A[Start] --> B{Go}");
+    const m1 = await adapter.parse("flowchart TD\n  A[Start] --> B{Go}");
+    const m2 = await adapter.parse(adapter.serialize(m1));
+    expect(normalize(m2)).toEqual(normalize(m1));
+  });
+});

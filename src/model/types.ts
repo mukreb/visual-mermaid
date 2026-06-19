@@ -65,6 +65,8 @@ export interface Trivia {
 }
 
 export interface GraphModel {
+  /** Discriminant for the DiagramModel union (see src/diagram). */
+  kind: "flowchart";
   direction: Direction;
   nodes: GNode[];
   edges: GEdge[];
@@ -74,6 +76,7 @@ export interface GraphModel {
 
 export function emptyModel(): GraphModel {
   return {
+    kind: "flowchart",
     direction: "TB",
     nodes: [],
     edges: [],

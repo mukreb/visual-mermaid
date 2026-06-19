@@ -109,7 +109,7 @@ export async function parseTextToModel(text: string): Promise<GraphModel> {
   }
   const realNodes = nodes.filter((n) => !(subgraphIds.has(n.id) && !referenced.has(n.id)));
 
-  return { direction, nodes: realNodes, edges, subgraphs, trivia };
+  return { kind: "flowchart", direction, nodes: realNodes, edges, subgraphs, trivia };
 }
 
 function normalizeDirection(d: string | undefined): Direction {
