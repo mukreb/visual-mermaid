@@ -8,11 +8,14 @@ import { deriveExportName, renderDiagramSvg, svgToPng } from "./lib/exportDiagra
 import { flushFocusedInput } from "./lib/flushInput";
 import {
   confirmDiscard,
+  drainOpenedFiles,
   exportBinaryFile,
   exportTextFile,
   isTauri,
+  onOpenFiles,
   openMermaidFile,
   saveMermaidFile,
+  type OpenedFile,
 } from "./lib/tauriFiles";
 import { useEditorStore } from "./model/store";
 import type { Direction } from "./model/types";
@@ -81,6 +84,15 @@ export default function App() {
       setPath(file.path);
       await loadText(file.text);
     }
+  };
+
+  // Load a file handed to us by the OS (Finder double-click / "Open With"). Same
+  // dirty guard as manual Open; if several arrive at once, the last one wins.
+  const openLoadedFile = async (file: OpenedFile) => {
+    flushFocusedInput();
+    if (isDirtyNow() && !(await confirmDiscard("Discard unsaved changes?"))) return;
+    setPath(file.path);
+    await loadText(file.text);
   };
 
   const onSave = async () => {
@@ -164,9 +176,41 @@ export default function App() {
   };
 
   // Keep the latest handlers reachable from the once-installed menu / key listener.
-  const actions = { onNew, onOpen, onSave, onSaveAs, onExportSvg, onExportPng, togglePreview };
+  const actions = { onNew, onOpen, onSave, onSaveAs, onExportSvg, onExportPng, togglePreview, openLoadedFile };
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
+
+  // Files opened from Finder (double-click / "Open With"). No-op in a browser.
+  // Runs once; reads live handlers through actionsRef so it needn't re-bind.
+  //
+  // Order matters: install the listener *before* the initial drain. Otherwise a
+  // file opened during startup could land in the Rust buffer after the drain read
+  // it but before the listener existed — its nudge would reach no one and the file
+  // would never open. With the listener up first, anything buffered before/during
+  // setup is caught by the drain below, anything after fires the listener, and the
+  // atomic take on the Rust side keeps the two from double-opening the same file.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      const off = await onOpenFiles((files) => {
+        void actionsRef.current.openLoadedFile(files[files.length - 1]);
+      });
+      if (cancelled) {
+        off();
+        return;
+      }
+      unlisten = off;
+      const launched = await drainOpenedFiles();
+      if (!cancelled && launched.length > 0) {
+        await actionsRef.current.openLoadedFile(launched[launched.length - 1]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
 
   // Native menu + unsaved-close guard (Tauri only; no-ops in a browser).
   useEffect(() => {
