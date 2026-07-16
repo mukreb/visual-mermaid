@@ -1,7 +1,7 @@
 {
   "name": "visual-mermaid",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Visual + code two-way editor for Mermaid flowcharts (Tauri desktop app)",
   "scripts": {
