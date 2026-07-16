@@ -42,7 +42,11 @@
         "name": "Mermaid Diagram",
         "description": "Mermaid diagram source file",
         "role": "Editor",
-        "mimeType": "text/vnd.mermaid"
+        "mimeType": "text/vnd.mermaid",
+        "exportedType": {
+          "identifier": "com.visualmermaid.mmd",
+          "conformsTo": ["public.plain-text"]
+        }
       }
     ]
   }

@@ -180,22 +180,31 @@ export default function App() {
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
 
-  // Files opened from Finder (double-click / "Open With"): drain any that launched
-  // the app, then listen for ones opened while it's already running. No-op in a
-  // browser. Runs once; reads live handlers through actionsRef so it needn't re-bind.
+  // Files opened from Finder (double-click / "Open With"). No-op in a browser.
+  // Runs once; reads live handlers through actionsRef so it needn't re-bind.
+  //
+  // Order matters: install the listener *before* the initial drain. Otherwise a
+  // file opened during startup could land in the Rust buffer after the drain read
+  // it but before the listener existed — its nudge would reach no one and the file
+  // would never open. With the listener up first, anything buffered before/during
+  // setup is caught by the drain below, anything after fires the listener, and the
+  // atomic take on the Rust side keeps the two from double-opening the same file.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
+      const off = await onOpenFiles((files) => {
+        void actionsRef.current.openLoadedFile(files[files.length - 1]);
+      });
+      if (cancelled) {
+        off();
+        return;
+      }
+      unlisten = off;
       const launched = await drainOpenedFiles();
       if (!cancelled && launched.length > 0) {
         await actionsRef.current.openLoadedFile(launched[launched.length - 1]);
       }
-      const off = await onOpenFiles((files) => {
-        void actionsRef.current.openLoadedFile(files[files.length - 1]);
-      });
-      if (cancelled) off();
-      else unlisten = off;
     })();
     return () => {
       cancelled = true;
