@@ -15,6 +15,10 @@ export interface MenuHandlers {
   onExportSvg: () => void;
   onExportPng: () => void;
   togglePreview: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  onAddNode: () => void;
+  onCycleDirection: () => void;
 }
 
 export async function setupAppMenu(handlers: MenuHandlers): Promise<void> {
@@ -70,9 +74,24 @@ export async function setupAppMenu(handlers: MenuHandlers): Promise<void> {
     const editMenu = await Submenu.new({
       text: "Edit",
       items: [
+        // No accelerator: a menu-registered CmdOrCtrl+Z would be caught by the
+        // OS before it ever reaches the webview, breaking Monaco/input-field
+        // undo. The focus-aware global keydown listener in App.tsx already
+        // owns ⌘Z/⇧⌘Z (in the app and the browser) and calls these same
+        // store actions when focus isn't in a text control.
+        await MenuItem.new({
+          text: "Undo",
+          action: () => handlers.onUndo(),
+        }),
+        await MenuItem.new({
+          text: "Redo",
+          action: () => handlers.onRedo(),
+        }),
+        await sep(),
         await PredefinedMenuItem.new({ item: "Cut" }),
         await PredefinedMenuItem.new({ item: "Copy" }),
         await PredefinedMenuItem.new({ item: "Paste" }),
+        await sep(),
         await PredefinedMenuItem.new({ item: "SelectAll" }),
       ],
     });
@@ -88,7 +107,21 @@ export async function setupAppMenu(handlers: MenuHandlers): Promise<void> {
       ],
     });
 
-    const menu = await Menu.new({ items: [appMenu, fileMenu, editMenu, viewMenu] });
+    const flowchartMenu = await Submenu.new({
+      text: "Flowchart",
+      items: [
+        await MenuItem.new({
+          text: "Add Node",
+          action: () => handlers.onAddNode(),
+        }),
+        await MenuItem.new({
+          text: "Cycle Layout Direction",
+          action: () => handlers.onCycleDirection(),
+        }),
+      ],
+    });
+
+    const menu = await Menu.new({ items: [appMenu, fileMenu, editMenu, viewMenu, flowchartMenu] });
     await menu.setAsAppMenu();
   } catch (err) {
     console.warn("App menu setup skipped:", err);
