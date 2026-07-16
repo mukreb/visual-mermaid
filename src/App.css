@@ -70,14 +70,6 @@ body,
   -webkit-user-select: none;
 }
 
-.toolbar .brand {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  opacity: 0.92;
-  margin-right: 6px;
-}
-
 .toolbar-group {
   display: flex;
   align-items: center;

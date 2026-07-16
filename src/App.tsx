@@ -175,8 +175,26 @@ export default function App() {
     mutate((m) => (m.kind === "flowchart" ? { ...m, direction: next } : m));
   };
 
+  const onAddNode = () => mutate((m) => (m.kind === "flowchart" ? addNode(m, { label: "New" }) : m));
+
+  const onUndo = () => useEditorStore.getState().undo();
+  const onRedo = () => useEditorStore.getState().redo();
+
   // Keep the latest handlers reachable from the once-installed menu / key listener.
-  const actions = { onNew, onOpen, onSave, onSaveAs, onExportSvg, onExportPng, togglePreview, openLoadedFile };
+  const actions = {
+    onNew,
+    onOpen,
+    onSave,
+    onSaveAs,
+    onExportSvg,
+    onExportPng,
+    togglePreview,
+    openLoadedFile,
+    onAddNode,
+    onCycleDirection: cycleDirection,
+    onUndo,
+    onRedo,
+  };
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
 
@@ -222,6 +240,10 @@ export default function App() {
       onExportSvg: () => actionsRef.current.onExportSvg(),
       onExportPng: () => actionsRef.current.onExportPng(),
       togglePreview: () => actionsRef.current.togglePreview(),
+      onUndo: () => actionsRef.current.onUndo(),
+      onRedo: () => actionsRef.current.onRedo(),
+      onAddNode: () => actionsRef.current.onAddNode(),
+      onCycleDirection: () => actionsRef.current.onCycleDirection(),
     });
     let unlisten: (() => void) | undefined;
     void setupCloseGuard(() => useEditorStore.getState().text !== useEditorStore.getState().savedText).then(
@@ -274,9 +296,6 @@ export default function App() {
   return (
     <div className="app">
       <header className="toolbar" data-tauri-drag-region>
-        <span className="brand" data-tauri-drag-region>
-          Visual Mermaid
-        </span>
         <div className="toolbar-group">
           <button className="tbtn" onClick={onOpen} title="Open (⌘O)">
             <FolderOpenIcon />
@@ -290,11 +309,7 @@ export default function App() {
           {kind === "flowchart" && (
             <>
               <span className="tsep" />
-              <button
-                className="tbtn"
-                onClick={() => mutate((m) => (m.kind === "flowchart" ? addNode(m, { label: "New" }) : m))}
-                title="Add node"
-              >
+              <button className="tbtn" onClick={onAddNode} title="Add node">
                 <PlusIcon />
                 <span>Node</span>
               </button>
@@ -305,10 +320,10 @@ export default function App() {
             </>
           )}
           <span className="tsep" />
-          <button className="tbtn" onClick={() => useEditorStore.getState().undo()} disabled={!canUndo} title="Undo (⌘Z)">
+          <button className="tbtn" onClick={onUndo} disabled={!canUndo} title="Undo (⌘Z)">
             <UndoIcon />
           </button>
-          <button className="tbtn" onClick={() => useEditorStore.getState().redo()} disabled={!canRedo} title="Redo (⇧⌘Z)">
+          <button className="tbtn" onClick={onRedo} disabled={!canRedo} title="Redo (⇧⌘Z)">
             <RedoIcon />
           </button>
           <span className="tsep" />
