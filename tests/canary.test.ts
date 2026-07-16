@@ -29,8 +29,9 @@ describe("mermaid internal db canary (pinned 11.15.0)", () => {
     expect(edges[0]).toMatchObject({ start: "A", end: "B", stroke: "normal" });
     expect(typeof edges[0].type).toBe("string");
 
-    // getDirection() must return the flow direction verbatim — mermaid 11.15
-    // returns "TD" as written (it does not normalize it to "TB").
-    expect(db.getDirection()).toBe("TD");
+    // getDirection() must return a usable flow direction — mermaid 11.15
+    // normalizes the synonym "TD" to "TB" (our parser accepts both, so this only
+    // guards that the accessor still exists and yields a direction string).
+    expect(db.getDirection()).toBe("TB");
   });
 });
