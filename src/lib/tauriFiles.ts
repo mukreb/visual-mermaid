@@ -23,6 +23,54 @@ export async function openMermaidFile(): Promise<OpenedFile | null> {
   return { path: selected, text: await readTextFile(selected) };
 }
 
+/**
+ * Drain any files macOS asked the app to open (Finder double-click / "Open With").
+ * The Rust side buffers these; each path is handed out exactly once. Returns [] in a
+ * plain browser or when nothing is pending. Tauri only.
+ */
+export async function drainOpenedFiles(): Promise<OpenedFile[]> {
+  if (!isTauri()) return [];
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { readTextFile } = await import("@tauri-apps/plugin-fs");
+    const paths = await invoke<string[]>("take_opened_files");
+    const files: OpenedFile[] = [];
+    for (const path of paths) {
+      try {
+        files.push({ path, text: await readTextFile(path) });
+      } catch (err) {
+        console.warn("Failed to read opened file:", path, err);
+      }
+    }
+    return files;
+  } catch (err) {
+    console.warn("drainOpenedFiles skipped:", err);
+    return [];
+  }
+}
+
+/**
+ * Subscribe to macOS "open-file" signals (a file double-clicked while the app is
+ * already running) and drain the pending files, invoking `handler` when any arrive.
+ * Returns an unlisten fn; a no-op in a plain browser. Tauri only.
+ */
+export async function onOpenFiles(
+  handler: (files: OpenedFile[]) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const unlisten = await listen("open-file", async () => {
+      const files = await drainOpenedFiles();
+      if (files.length > 0) handler(files);
+    });
+    return unlisten;
+  } catch (err) {
+    console.warn("open-file listener skipped:", err);
+    return () => {};
+  }
+}
+
 export interface SaveResult {
   saved: boolean;
   path: string | null;

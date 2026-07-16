@@ -201,7 +201,12 @@ Order: **sequence** → state → class → ER.
 **Next:** sequence visual *editing* (drag participants, add messages) → then **state** diagrams.
 
 ### Phase 4 — Distribution (later, if wanted)
-Code-signing + notarization in `tauri.conf.json`, DMG, auto-update, `.mmd` file association.
+Code-signing + notarization in `tauri.conf.json`, DMG, auto-update.
+
+`.mmd`/`.mermaid` file association is wired: `bundle.fileAssociations` registers the
+app as a handler, the Rust shell buffers `RunEvent::Opened` file URLs into shared
+state, and the frontend drains them at launch (`take_opened_files`) and on the live
+`open-file` signal — so double-clicking a diagram in Finder opens it in the app.
 
 ---
 
