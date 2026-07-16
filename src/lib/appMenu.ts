@@ -74,14 +74,17 @@ export async function setupAppMenu(handlers: MenuHandlers): Promise<void> {
     const editMenu = await Submenu.new({
       text: "Edit",
       items: [
+        // No accelerator: a menu-registered CmdOrCtrl+Z would be caught by the
+        // OS before it ever reaches the webview, breaking Monaco/input-field
+        // undo. The focus-aware global keydown listener in App.tsx already
+        // owns ⌘Z/⇧⌘Z (in the app and the browser) and calls these same
+        // store actions when focus isn't in a text control.
         await MenuItem.new({
           text: "Undo",
-          accelerator: "CmdOrCtrl+Z",
           action: () => handlers.onUndo(),
         }),
         await MenuItem.new({
           text: "Redo",
-          accelerator: "CmdOrCtrl+Shift+Z",
           action: () => handlers.onRedo(),
         }),
         await sep(),
